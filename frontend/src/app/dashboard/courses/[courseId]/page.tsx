@@ -12,8 +12,9 @@ import { useParams } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
 import { Button, Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui';
 import { formatDate } from '@/lib/utils';
-import type { Course, AssignmentSummary } from '@/types';
+import type { Course, AssignmentSummary, Assignment } from '@/types';
 import { SESSION_MODE_LABELS } from '@/types';
+import { Copy } from 'lucide-react';
 
 export default function CourseDetailPage() {
   const params = useParams();
@@ -23,6 +24,7 @@ export default function CourseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isInstructor, setIsInstructor] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadCourseData();
@@ -31,14 +33,16 @@ export default function CourseDetailPage() {
 
   const loadCourseData = async () => {
     try {
-      const [courseData, assignmentsData] = await Promise.all([
-        api.courses.get(courseId),
-        api.assignments.list(courseId, true),
-      ]);
+      // First get course data to check if user is instructor
+      const courseData = await api.courses.get(courseId);
+      const isInstr = courseData.instructorPasscode !== '***';
+
+      // Then fetch assignments with includeUnpublished based on role
+      const assignmentsData = await api.assignments.list(courseId, isInstr);
+
       setCourse(courseData);
       setAssignments(assignmentsData);
-      // Check if instructor (can see passcode)
-      setIsInstructor(courseData.instructorPasscode !== '***');
+      setIsInstructor(isInstr);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.detail);
@@ -47,6 +51,47 @@ export default function CourseDetailPage() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDuplicateAssignment = async (e: React.MouseEvent, assignmentId: string, originalTitle: string) => {
+    e.preventDefault(); // Prevent navigation to assignment page
+    e.stopPropagation();
+
+    const newTitle = window.prompt('Enter a name for the duplicated assignment:', `${originalTitle} (Copy)`);
+
+    if (!newTitle) {
+      return; // User cancelled
+    }
+
+    setDuplicatingId(assignmentId);
+
+    try {
+      // Get full assignment details
+      const originalAssignment = await api.assignments.get(courseId, assignmentId);
+
+      // Create new assignment as draft with modified title
+      const newAssignment = await api.assignments.create(courseId, {
+        title: newTitle,
+        description: originalAssignment.description,
+        instructions: originalAssignment.instructions,
+        mode: originalAssignment.mode,
+        systemPrompt: originalAssignment.systemPrompt,
+        inputMode: originalAssignment.inputMode,
+        dueDate: originalAssignment.dueDate,
+        timeLimitMinutes: originalAssignment.timeLimitMinutes,
+        grading: originalAssignment.grading,
+        knowledgeBase: originalAssignment.knowledgeBase,
+        isPublished: false // Always create as draft
+      });
+
+      // Reload assignments to show the new one
+      await loadCourseData();
+    } catch (err) {
+      console.error('Failed to duplicate assignment:', err);
+      alert('Failed to duplicate assignment. Please try again.');
+    } finally {
+      setDuplicatingId(null);
     }
   };
 
@@ -162,44 +207,61 @@ export default function CourseDetailPage() {
         ) : (
           <div className="space-y-3">
             {assignments.map((assignment) => (
-              <Link 
-                key={assignment.id} 
-                href={`/dashboard/courses/${courseId}/assignments/${assignment.id}`}
-              >
-                <Card className="card-hover cursor-pointer">
-                  <CardContent className="py-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              <div key={assignment.id} className="relative">
+                <Link
+                  href={`/dashboard/courses/${courseId}/assignments/${assignment.id}`}
+                >
+                  <Card className="card-hover cursor-pointer">
+                    <CardContent className="py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                            </svg>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-medium text-slate-900">{assignment.title}</h3>
+                              {!assignment.isPublished && (
+                                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                                  Draft
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-slate-500">
+                              {SESSION_MODE_LABELS[assignment.mode]}
+                              {assignment.dueDate && ` · Due ${formatDate(assignment.dueDate)}`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-slate-500">
+                          <span>{assignment.sessionCount} sessions</span>
+                          {isInstructor && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => handleDuplicateAssignment(e, assignment.id, assignment.title)}
+                              disabled={duplicatingId === assignment.id}
+                              className="ml-2 hover:bg-indigo-100"
+                              title="Duplicate Assignment"
+                            >
+                              {duplicatingId === assignment.id ? (
+                                <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Copy className="w-4 h-4 text-indigo-600" />
+                              )}
+                            </Button>
+                          )}
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-medium text-slate-900">{assignment.title}</h3>
-                            {!assignment.isPublished && (
-                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                                Draft
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-slate-500">
-                            {SESSION_MODE_LABELS[assignment.mode]}
-                            {assignment.dueDate && ` · Due ${formatDate(assignment.dueDate)}`}
-                          </p>
-                        </div>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-slate-500">
-                        <span>{assignment.sessionCount} sessions</span>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </div>
             ))}
           </div>
         )}

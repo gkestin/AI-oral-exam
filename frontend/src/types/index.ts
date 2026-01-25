@@ -304,7 +304,7 @@ export const SESSION_MODE_DESCRIPTIONS: Record<SessionMode, string> = {
 // ==================== GRADING MODELS ====================
 
 export const AVAILABLE_GRADING_MODELS = [
-  { id: 'gpt-4o', name: 'GPT-4o (OpenAI)', provider: 'openai' },
-  { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (Anthropic)', provider: 'anthropic' },
-  { id: 'gemini/gemini-1.5-pro', name: 'Gemini 1.5 Pro (Google)', provider: 'google' },
+  { id: 'gpt-4.1', name: 'GPT-4.1 (OpenAI)', provider: 'openai' },
+  { id: 'claude-opus-4-5-20251101', name: 'Claude Opus 4.5 (Anthropic)', provider: 'anthropic' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Google)', provider: 'google' },
 ] as const;

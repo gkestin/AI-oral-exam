@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
 import { Button, Card, CardHeader, CardTitle, CardContent } from '@/components/ui';
-import VoiceConversation from '@/components/VoiceConversation';
+import GeminiVoiceExam from '@/components/GeminiVoiceExam';
 import { formatDuration } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import {
@@ -193,10 +193,10 @@ export default function SessionPage() {
             </div>
 
             {sessionMode === 'voice' ? (
-              <VoiceConversation
+              <GeminiVoiceExam
                 sessionId={sessionId}
                 courseId={courseId}
-                assignmentTitle={assignment.title}
+                assignment={assignment}
                 onSessionEnd={handleSessionEnd}
               />
             ) : (
@@ -218,10 +218,10 @@ export default function SessionPage() {
   if (session.status === 'in_progress') {
     return (
       <div className="max-w-4xl mx-auto space-y-6">
-        <VoiceConversation
+        <GeminiVoiceExam
           sessionId={sessionId}
           courseId={courseId}
-          assignmentTitle={assignment.title}
+          assignment={assignment}
           onSessionEnd={handleSessionEnd}
         />
       </div>
@@ -341,7 +341,7 @@ export default function SessionPage() {
               <div className="flex items-center justify-between">
                 <CardTitle>Your Grade</CardTitle>
                 <span className="text-3xl font-bold text-indigo-600">
-                  {finalGrade.totalScore.toFixed(1)}/{finalGrade.maxScore}
+                  {finalGrade.totalScore.toFixed(1)}/{finalGrade.maxPossibleScore.toFixed(1)}
                 </span>
               </div>
             </CardHeader>
@@ -349,20 +349,20 @@ export default function SessionPage() {
               {/* Category Scores */}
               <div className="space-y-3">
                 <h4 className="font-medium text-gray-700">Category Breakdown</h4>
-                {Object.entries(finalGrade.categoryScores).map(([category, score]) => (
-                  <div key={category} className="flex items-center justify-between py-2 border-b">
-                    <span className="text-sm capitalize">{category.replace(/_/g, ' ')}</span>
+                {finalGrade.scores && finalGrade.scores.map((scoreItem) => (
+                  <div key={scoreItem.category} className="flex items-center justify-between py-2 border-b">
+                    <span className="text-sm capitalize">{scoreItem.category.replace(/_/g, ' ')}</span>
                     <div className="flex items-center gap-2">
                       <div className="w-32 bg-gray-200 rounded-full h-2">
                         <motion.div
                           className="bg-indigo-500 h-2 rounded-full"
                           initial={{ width: 0 }}
-                          animate={{ width: `${(score / finalGrade.maxScore) * 100}%` }}
+                          animate={{ width: `${(scoreItem.score / scoreItem.maxScore) * 100}%` }}
                           transition={{ duration: 0.5, delay: 0.5 }}
                         />
                       </div>
                       <span className="text-sm font-medium w-12 text-right">
-                        {score.toFixed(1)}
+                        {scoreItem.score.toFixed(1)}/{scoreItem.maxScore}
                       </span>
                     </div>
                   </div>
@@ -370,25 +370,25 @@ export default function SessionPage() {
               </div>
 
               {/* Feedback */}
-              {finalGrade.feedback && (
+              {finalGrade.overallFeedback && (
                 <div className="bg-blue-50 rounded-lg p-4">
                   <h4 className="font-medium text-blue-900 mb-2">Feedback</h4>
                   <p className="text-sm text-blue-800 whitespace-pre-wrap">
-                    {finalGrade.feedback}
+                    {finalGrade.overallFeedback}
                   </p>
                 </div>
               )}
 
               {/* Model Agreement */}
-              {finalGrade.modelAgreement && (
+              {finalGrade.agreementScore !== undefined && (
                 <div className="text-sm text-gray-600">
                   <span>Model Agreement Score: </span>
                   <span className={`font-medium ${
-                    finalGrade.modelAgreement > 0.8 ? 'text-green-600' :
-                    finalGrade.modelAgreement > 0.6 ? 'text-yellow-600' :
+                    finalGrade.agreementScore > 0.8 ? 'text-green-600' :
+                    finalGrade.agreementScore > 0.6 ? 'text-yellow-600' :
                     'text-red-600'
                   }`}>
-                    {(finalGrade.modelAgreement * 100).toFixed(0)}%
+                    {(finalGrade.agreementScore * 100).toFixed(0)}%
                   </span>
                 </div>
               )}

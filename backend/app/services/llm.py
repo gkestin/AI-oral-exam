@@ -61,34 +61,38 @@ async def call_llm(
     temperature: float = 0.7,
 ) -> LLMResponse:
     """Call an LLM with retry logic.
-    
+
     Args:
         model: Model identifier (e.g., "gpt-4o", "claude-3-5-sonnet-20241022", "gemini/gemini-1.5-pro")
         messages: List of message dicts with "role" and "content"
         json_mode: Whether to request JSON output
         max_tokens: Maximum tokens in response
         temperature: Sampling temperature
-    
+
     Returns:
         LLMResponse with content and metadata
     """
     init_llm()
-    
+
     start_time = time.time()
-    
+
+    # Handle Gemini models - add gemini/ prefix if not present
+    if "gemini" in model and not model.startswith("gemini/"):
+        model = f"gemini/{model}"
+
     kwargs = {
         "model": model,
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
     }
-    
+
     # JSON mode handling varies by provider
     if json_mode:
         if model.startswith("gpt"):
             kwargs["response_format"] = {"type": "json_object"}
         # Claude and Gemini handle JSON via prompt instructions
-    
+
     response = await litellm.acompletion(**kwargs)
     
     latency_ms = int((time.time() - start_time) * 1000)
