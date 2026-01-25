@@ -1,112 +1,155 @@
-# AI Oral Exam System
+# AI Oral Exam Platform
 
-A scalable, AI-powered oral examination system inspired by ["Fighting Fire with Fire"](https://www.behind-the-enemy-lines.com/2025/12/fighting-fire-with-fire-scalable-oral.html) by Professor Panos Ipeirotis (NYU Stern).
-
-## Overview
-
-This system enables educators to conduct personalized oral exams at scale using:
-- **Voice AI Agent**: Conducts real-time conversational exams with students
-- **Council of LLMs**: Multi-model grading system (Claude, GPT-4, Gemini) for consistent, fair assessment
-- **Firebase Backend**: Authentication, database, and storage
-- **Admin Dashboard**: Manage students, view transcripts, and review grades
+An AI-powered oral examination and assessment platform with voice conversations and multi-model grading.
 
 ## Features
 
-- 🎤 **Voice-based oral exams** via browser (no phone needed)
-- 🎯 **Personalized questions** based on student projects and course materials
-- 🤖 **Multi-LLM grading** with consultation rounds for consistency
-- 📹 **Webcam recording** for proctoring/audit trail
-- 📊 **Analytics** to identify teaching gaps
-- 💰 **Cost-effective**: ~$0.40-0.50 per student exam
+- **Voice-First Interaction**: Natural voice conversations powered by Gemini Live API
+- **Multi-Model Grading**: Fair assessment using GPT-4, Claude, and Gemini with deliberation rounds
+- **Flexible Modes**: Oral exams, practice sessions, AI tutoring, mock interviews, and Socratic discussions
+- **Custom Rubrics**: Define grading categories and point scales per assignment
+- **Real-time Transcription**: Live transcription during voice sessions
+- **Course Management**: Create courses, enroll students, manage assignments
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|------------|
-| Frontend | Next.js, React, TypeScript, Tailwind CSS |
-| Backend | Python, FastAPI |
-| Database | Firebase Firestore |
-| Auth | Firebase Authentication (Email + Google) |
-| Storage | Firebase Storage (recordings) |
-| Voice | Pipecat / Gemini Live API |
-| LLMs | OpenAI GPT-4, Anthropic Claude, Google Gemini |
-| Grading | LiteLLM (unified API) |
+### Frontend
+- Next.js 14 (App Router)
+- React 18
+- TypeScript
+- Tailwind CSS
+- Firebase Auth
+
+### Backend
+- FastAPI (Python)
+- Firebase Admin SDK
+- LiteLLM (unified LLM interface)
+- Pydantic v2
+
+### Infrastructure
+- Firebase (Auth, Firestore, Storage)
+- Google Cloud Platform
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- Python 3.11+
+- Firebase project with Auth and Firestore enabled
+
+### Environment Setup
+
+1. Create a `.env` file in the root directory:
+
+```env
+# LLM API Keys
+OPENAI_API_KEY=your_openai_key
+ANTHROPIC_API_KEY=your_anthropic_key
+GOOGLE_API_KEY=your_google_key
+
+# Firebase (optional - for local service account)
+FIREBASE_CREDENTIALS_PATH=path/to/serviceAccountKey.json
+```
+
+2. Update Firebase config in `frontend/src/lib/firebase.ts`
+
+### Backend Setup
+
+```bash
+cd backend
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run development server
+uvicorn app.main:app --reload --port 8000
+```
+
+### Frontend Setup
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+```
+
+The frontend will be available at http://localhost:3000
+The backend API will be available at http://localhost:8000
 
 ## Project Structure
 
 ```
 AI-oral-exam/
-├── frontend/                 # Next.js web application
-│   └── src/
-│       ├── app/             # Next.js app router
-│       ├── components/      # React components
-│       └── lib/             # Firebase config, utilities
-├── backend/                  # Python FastAPI server
-│   └── app/
-│       ├── routers/         # API endpoints
-│       ├── services/        # Business logic (grading, voice)
-│       └── models/          # Pydantic schemas
-├── prompts/                  # LLM prompt templates
-├── docs/                     # Documentation
-├── .env.example             # Environment variables template
-└── README.md
+├── backend/
+│   ├── app/
+│   │   ├── main.py           # FastAPI entry point
+│   │   ├── config.py         # Settings from env
+│   │   ├── models/           # Pydantic models
+│   │   ├── routers/          # API endpoints
+│   │   └── services/         # Business logic
+│   └── requirements.txt
+│
+├── frontend/
+│   ├── src/
+│   │   ├── app/              # Next.js pages
+│   │   ├── components/       # React components
+│   │   ├── lib/              # Utilities, hooks, API client
+│   │   └── types/            # TypeScript types
+│   └── package.json
+│
+└── prompts/                  # Prompt templates
 ```
 
-## Setup
+## API Endpoints
 
-### Prerequisites
+### Courses
+- `GET /api/courses` - List enrolled courses
+- `POST /api/courses` - Create a course
+- `GET /api/courses/{id}` - Get course details
+- `POST /api/courses/enroll` - Enroll with passcode
 
-- Node.js 18+
-- Python 3.10+
-- Firebase project with Firestore and Authentication enabled
+### Assignments
+- `GET /api/courses/{id}/assignments` - List assignments
+- `POST /api/courses/{id}/assignments` - Create assignment
+- `GET /api/courses/{id}/assignments/{id}` - Get assignment
 
-### Environment Variables
+### Sessions
+- `POST /api/courses/{id}/sessions` - Start session
+- `POST /api/courses/{id}/sessions/{id}/start` - Mark started
+- `POST /api/courses/{id}/sessions/{id}/message` - Add message
+- `POST /api/courses/{id}/sessions/{id}/end` - End session
 
-Copy `.env.example` to `.env` and fill in your API keys:
+### Grading
+- `POST /api/courses/{id}/grading/grade` - Trigger grading
+- `GET /api/courses/{id}/grading/sessions/{id}/final` - Get final grade
 
-```bash
-cp .env.example .env
-```
+## Grading Council
 
-Required keys:
-- `OPENAI_API_KEY` - For GPT-4 grading
-- `ANTHROPIC_API_KEY` - For Claude grading
-- `GOOGLE_API_KEY` - For Gemini grading + voice
+The platform uses a multi-model grading approach:
 
-### Installation
+1. **Round 1 (Independent)**: Each selected LLM grades the session independently
+2. **Agreement Check**: Calculate agreement score between models
+3. **Round 2 (Deliberation)**: If agreement is below threshold, models see each other's grades and re-grade
+4. **Aggregation**: Final scores are calculated as weighted averages
 
-```bash
-# Frontend
-cd frontend
-npm install
+## Future Features
 
-# Backend
-cd backend
-pip install -r requirements.txt
-```
-
-### Running Locally
-
-```bash
-# Terminal 1: Frontend
-cd frontend
-npm run dev
-
-# Terminal 2: Backend
-cd backend
-uvicorn app.main:app --reload
-```
-
-## Configuration
-
-Firebase is pre-configured for this project. The Firestore database and Authentication (Email + Google Sign-in) are already set up.
+- [ ] Webcam/audio recording (proctoring)
+- [ ] Code/document evaluation
+- [ ] LMS integration (Canvas, etc.)
+- [ ] Analytics dashboard
+- [ ] Project check-ins
+- [ ] Retention policies
 
 ## License
 
 MIT
-
-## Acknowledgments
-
-- [Panos Ipeirotis](https://www.behind-the-enemy-lines.com/) for the original "Fighting Fire with Fire" concept
-- [Brian Jabarian](https://brianjabarian.org/) for AI interview research
-- [Andrej Karpathy](https://github.com/karpathy/llm-council) for the "Council of LLMs" approach

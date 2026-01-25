@@ -1,30 +1,88 @@
-// Firebase Configuration
-// ======================
-// This file initializes Firebase services for the frontend.
-// Note: These are client-side credentials (safe to expose in frontend code).
-// They are restricted by Firebase Security Rules.
+/**
+ * Firebase Configuration
+ * ======================
+ * Firebase client SDK initialization and exports.
+ */
 
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { 
+  getAuth, 
+  Auth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signOut,
+  onAuthStateChanged,
+  User as FirebaseUser,
+  updateProfile,
+} from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 
-// Your web app's Firebase configuration
+// Firebase configuration - uses environment variables with fallbacks
 const firebaseConfig = {
-  apiKey: "AIzaSyBKiacyhwje4mqx1QHRHlsN7lFa4Kj_rIk",
-  authDomain: "ai-oral-exam.firebaseapp.com",
-  projectId: "ai-oral-exam",
-  storageBucket: "ai-oral-exam.firebasestorage.app",
-  messagingSenderId: "594877543703",
-  appId: "1:594877543703:web:eb8ed6a880331f62553352"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyBKiacyhwje4mqx1QHRHlsN7lFa4Kj_rIk",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "ai-oral-exam.firebaseapp.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "ai-oral-exam",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "ai-oral-exam.firebasestorage.app",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "594877543703",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:594877543703:web:eb8ed6a880331f62553352"
 };
 
-// Initialize Firebase (prevent re-initialization in dev with hot reload)
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+// Initialize Firebase (prevent multiple initializations)
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+let storage: FirebaseStorage;
 
-// Initialize Firebase services
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApps()[0];
+}
 
-export default app;
+auth = getAuth(app);
+db = getFirestore(app);
+storage = getStorage(app);
+
+// Google Auth Provider
+const googleProvider = new GoogleAuthProvider();
+
+// Auth functions
+export const signInWithEmail = async (email: string, password: string) => {
+  return signInWithEmailAndPassword(auth, email, password);
+};
+
+export const signUpWithEmail = async (
+  email: string, 
+  password: string, 
+  displayName: string
+) => {
+  const result = await createUserWithEmailAndPassword(auth, email, password);
+  await updateProfile(result.user, { displayName });
+  return result;
+};
+
+export const signInWithGoogle = async () => {
+  return signInWithPopup(auth, googleProvider);
+};
+
+export const logout = async () => {
+  return signOut(auth);
+};
+
+export const getIdToken = async (): Promise<string | null> => {
+  const user = auth.currentUser;
+  if (!user) return null;
+  return user.getIdToken();
+};
+
+// Auth state observer
+export const onAuthChange = (callback: (user: FirebaseUser | null) => void) => {
+  return onAuthStateChanged(auth, callback);
+};
+
+// Export instances
+export { app, auth, db, storage };
+export type { FirebaseUser };

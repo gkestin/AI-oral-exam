@@ -15,11 +15,16 @@ openai>=1.12.0
 anthropic>=0.18.0
 google-generativeai>=0.4.0
 
-# Voice/Audio (optional - for Pipecat integration)
-# pipecat-ai>=0.0.20
+# Voice/Audio & Real-time Communication
+websockets>=12.0
+google-cloud-speech>=2.24.0
+google-cloud-texttospeech>=2.16.0
+# pyaudio>=0.2.14  # Commented out - requires system dependencies
+# Additional Gemini Live support
+# google.generativeai>=0.8.0  # Conflicts with google-generativeai
 
 # Data validation
-pydantic>=2.6.0
+pydantic[email]>=2.6.0
 pydantic-settings>=2.1.0
 
 # Async support
@@ -31,3 +36,4 @@ python-dotenv>=1.0.0
 
 # Utilities
 tenacity>=8.2.0  # Retry logic for API calls
+numpy>=1.24.0  # For vector operations in RAG

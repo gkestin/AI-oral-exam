@@ -81,6 +81,8 @@ Thumbs.db
 *.key
 secrets/
 credentials/
+serviceAccountKey.json
+**/serviceAccountKey.json
 
 # Recordings (large files)
 recordings/
