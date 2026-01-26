@@ -12,12 +12,12 @@ import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { useCourseContext } from '@/lib/contexts/course-context';
 import { formatDate, formatDuration } from '@/lib/utils';
-import type { SessionSummary, Assignment } from '@/types';
+import type { SessionSummary, AssignmentSummary } from '@/types';
 
 export default function SessionsPage() {
   const { selectedCourse } = useCourseContext();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [assignments, setAssignments] = useState<AssignmentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'all' | 'grouped'>('grouped');

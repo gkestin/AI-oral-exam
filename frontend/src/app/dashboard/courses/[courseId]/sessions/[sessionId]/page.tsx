@@ -166,7 +166,7 @@ export default function SessionPage() {
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle className="w-4 h-4 mt-0.5" />
-                  <span>Duration: Approximately {assignment.durationMinutes} minutes</span>
+                  <span>Duration: {assignment.timeLimitMinutes ? `Approximately ${assignment.timeLimitMinutes} minutes` : 'No time limit'}</span>
                 </li>
               </ul>
             </div>

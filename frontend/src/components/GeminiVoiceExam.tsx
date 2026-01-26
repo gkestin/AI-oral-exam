@@ -82,10 +82,12 @@ Keep responses concise for natural conversation.`;
     }
 
     // Add mode-specific instructions
-    if (assignment.mode === 'practice') {
-      prompt += `\n\nThis is a practice session. Be helpful and provide hints when needed.`;
-    } else if (assignment.mode === 'interview') {
-      prompt += `\n\nThis is an interview. Focus on assessing relevant skills and experience.`;
+    if (assignment.mode === 'mock_interview') {
+      prompt += `\n\nThis is a mock interview. Focus on assessing relevant skills and experience.`;
+    } else if (assignment.mode === 'ai_tutor') {
+      prompt += `\n\nYou are an AI tutor. Be helpful and provide hints when needed.`;
+    } else if (assignment.mode === 'socratic') {
+      prompt += `\n\nUse the Socratic method - ask probing questions to guide understanding.`;
     }
 
     return prompt;

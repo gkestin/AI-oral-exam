@@ -60,14 +60,20 @@ export default function ElevenLabsVoiceExam({
       let content = '';
       if (typeof message === 'string') {
         content = message;
-      } else if (message?.text) {
-        content = message.text;
-      } else if (message?.content) {
-        content = message.content;
+      } else if (typeof message === 'object' && message !== null) {
+        // Type guard for object type
+        const msgObj = message as any;
+        if (msgObj.text) {
+          content = msgObj.text;
+        } else if (msgObj.content) {
+          content = msgObj.content;
+        } else {
+          // Log the entire message object to understand its structure
+          console.log('Unknown message structure:', JSON.stringify(message));
+          content = JSON.stringify(message);
+        }
       } else {
-        // Log the entire message object to understand its structure
-        console.log('Unknown message structure:', JSON.stringify(message));
-        content = JSON.stringify(message);
+        content = String(message);
       }
 
       // Only add non-empty messages
@@ -85,9 +91,11 @@ export default function ElevenLabsVoiceExam({
         saveMessageToBackend(newMessage);
       }
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('ElevenLabs error:', error);
-      setError(`Voice connection error: ${error.message || 'Unknown error'}`);
+      const errorMessage = typeof error === 'string' ? error :
+                         (error?.message || error?.toString() || 'Unknown error');
+      setError(`Voice connection error: ${errorMessage}`);
       setIsConnecting(false);
     },
     onModeChange: ({ mode }) => {
@@ -147,8 +155,10 @@ export default function ElevenLabsVoiceExam({
           try {
             const updatedVoiceConfig = {
               ...assignment.voiceConfig,
+              provider: assignment.voiceConfig?.provider || 'browser_tts',
               elevenLabs: {
                 ...assignment.voiceConfig?.elevenLabs,
+                mode: assignment.voiceConfig?.elevenLabs?.mode || 'agent_id',
                 agentId: newAgentId
               }
             };
@@ -297,10 +307,13 @@ Keep responses concise for natural conversation.`;
       });
     }
 
-    if (assignment.mode === 'practice') {
-      prompt += `\n\nThis is a practice session. Be helpful and provide hints when needed.`;
-    } else if (assignment.mode === 'interview') {
-      prompt += `\n\nThis is an interview. Focus on assessing relevant skills and experience.`;
+    // Add mode-specific instructions
+    if (assignment.mode === 'mock_interview') {
+      prompt += `\n\nThis is a mock interview. Focus on assessing relevant skills and experience.`;
+    } else if (assignment.mode === 'ai_tutor') {
+      prompt += `\n\nYou are an AI tutor. Be helpful and provide hints when needed.`;
+    } else if (assignment.mode === 'socratic') {
+      prompt += `\n\nUse the Socratic method - ask probing questions to guide understanding.`;
     }
 
     return prompt;

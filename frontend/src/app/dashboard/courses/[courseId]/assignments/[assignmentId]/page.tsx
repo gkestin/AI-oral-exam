@@ -178,12 +178,12 @@ export default function AssignmentDetailPage() {
                 <p className="text-sm text-slate-600">
                   {assignment.voiceConfig?.provider === 'elevenlabs'
                     ? 'ElevenLabs AI Voice'
-                    : assignment.voiceConfig?.provider === 'browser'
+                    : assignment.voiceConfig?.provider === 'browser_tts'
                     ? 'Browser Text-to-Speech'
                     : 'Default Voice'}
-                  {assignment.voiceConfig?.elevenLabs?.model && (
+                  {assignment.voiceConfig?.elevenLabs?.llmModel && (
                     <span className="block text-xs text-slate-500 mt-1">
-                      Model: {assignment.voiceConfig.elevenLabs.model}
+                      Model: {assignment.voiceConfig.elevenLabs.llmModel}
                     </span>
                   )}
                 </p>
@@ -194,12 +194,6 @@ export default function AssignmentDetailPage() {
                   {assignment.timeLimitMinutes
                     ? `${assignment.timeLimitMinutes} minutes`
                     : 'No time limit'}
-                </p>
-              </div>
-              <div>
-                <h4 className="text-sm font-medium text-slate-900 mb-1">Max Attempts</h4>
-                <p className="text-sm text-slate-600">
-                  {assignment.maxAttempts || 'Unlimited'}
                 </p>
               </div>
               <div>

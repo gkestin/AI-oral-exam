@@ -14,14 +14,14 @@ import { api } from '@/lib/api';
 import { Button, Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui';
 import { useCourseContext } from '@/lib/contexts/course-context';
 import { formatDate } from '@/lib/utils';
-import type { Assignment, SessionSummary } from '@/types';
+import type { AssignmentSummary, SessionSummary } from '@/types';
 import { SESSION_MODE_LABELS } from '@/types';
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
   const { selectedCourse, courses, loading: coursesLoading } = useCourseContext();
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [assignments, setAssignments] = useState<AssignmentSummary[]>([]);
   const [recentSessions, setRecentSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,11 +41,12 @@ export default function DashboardPage() {
       setLoading(true);
       const [assignmentsData, sessionsData] = await Promise.all([
         api.assignments.list(selectedCourse.course.id),
-        api.sessions.list(selectedCourse.course.id, { limit: 5 }),
+        api.sessions.list(selectedCourse.course.id),
       ]);
 
       setAssignments(assignmentsData);
-      setRecentSessions(sessionsData);
+      // Only show the 5 most recent sessions
+      setRecentSessions(sessionsData.slice(0, 5));
     } catch (err) {
       setError('Failed to load dashboard data');
       console.error(err);
@@ -161,9 +162,6 @@ export default function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2 text-sm">
-                        {assignment.description && (
-                          <p className="text-slate-600 line-clamp-2">{assignment.description}</p>
-                        )}
                         {assignment.dueDate && (
                           <p className="text-slate-500">
                             Due: {formatDate(assignment.dueDate)}

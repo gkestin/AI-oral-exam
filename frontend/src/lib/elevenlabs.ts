@@ -129,14 +129,17 @@ Keep responses concise for natural conversation.`;
 
   // Add mode-specific instructions
   switch (assignment.mode) {
-    case 'practice':
-      prompt += `\n\nThis is a PRACTICE session. Be helpful and provide hints when the student struggles. Offer constructive feedback.`;
+    case 'ai_tutor':
+      prompt += `\n\nYou are an AI TUTOR. Be helpful and provide hints when the student struggles. Offer constructive feedback.`;
       break;
-    case 'interview':
-      prompt += `\n\nThis is an INTERVIEW. Focus on assessing relevant skills and experience. Ask behavioral questions.`;
+    case 'mock_interview':
+      prompt += `\n\nThis is a MOCK INTERVIEW. Focus on assessing relevant skills and experience. Ask behavioral questions.`;
       break;
     case 'oral_exam':
       prompt += `\n\nThis is a FORMAL EXAM. Maintain professionalism. Do not provide hints unless the student is completely stuck.`;
+      break;
+    case 'socratic':
+      prompt += `\n\nUse the SOCRATIC METHOD. Ask probing questions to guide understanding.`;
       break;
   }
 
@@ -179,14 +182,17 @@ Keep responses concise for natural conversation.`;
 
   // Add mode-specific instructions
   switch (assignment.mode) {
-    case 'practice':
-      prompt += `\n\nThis is a PRACTICE session. Be helpful and provide hints when the student struggles. Offer constructive feedback.`;
+    case 'ai_tutor':
+      prompt += `\n\nYou are an AI TUTOR. Be helpful and provide hints when the student struggles. Offer constructive feedback.`;
       break;
-    case 'interview':
-      prompt += `\n\nThis is an INTERVIEW. Focus on assessing relevant skills and experience. Ask behavioral questions.`;
+    case 'mock_interview':
+      prompt += `\n\nThis is a MOCK INTERVIEW. Focus on assessing relevant skills and experience. Ask behavioral questions.`;
       break;
     case 'oral_exam':
       prompt += `\n\nThis is a FORMAL EXAM. Maintain professionalism. Do not provide hints unless the student is completely stuck.`;
+      break;
+    case 'socratic':
+      prompt += `\n\nUse the SOCRATIC METHOD. Ask probing questions to guide understanding.`;
       break;
   }
 

@@ -76,8 +76,8 @@ export default function EditAssignmentPage() {
           }
         }
 
-        // Handle both old and new field names
-        const duration = data.timeLimitMinutes || data.durationMinutes || 20;
+        // Use timeLimitMinutes field
+        const duration = data.timeLimitMinutes || 20;
         setDurationMinutes(duration);
         setTimeLimitMinutes(duration);
 
@@ -625,7 +625,7 @@ export default function EditAssignmentPage() {
         </Card>
 
         {/* Status Note */}
-        {assignment.published === false && (
+        {assignment.isPublished === false && (
           <div className="bg-amber-50 border border-amber-200 text-amber-700 text-sm p-3 rounded-lg">
             This assignment is currently a <strong>draft</strong>. Students cannot see or access it until you publish it.
           </div>

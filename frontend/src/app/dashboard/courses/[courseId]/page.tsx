@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
 import { Button, Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui';
+import { Copy } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import type { Course, AssignmentSummary, Assignment } from '@/types';
 import { SESSION_MODE_LABELS } from '@/types';
