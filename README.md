@@ -2,6 +2,15 @@
 
 An AI-powered oral examination and assessment platform with voice conversations and multi-model grading.
 
+## 🚀 Production Deployment
+
+The platform is fully deployed and operational on Google Cloud Platform:
+
+- **Live Application**: https://ai-oral-exam-frontend-254272019109.us-central1.run.app
+- **Backend API**: https://ai-oral-exam-backend-254272019109.us-central1.run.app
+- **GCP Project**: planar-compass-485504-c0
+- **Firebase Project**: ai-oral-exam
+
 ## Features
 
 - **Voice-First Interaction**: Natural voice conversations powered by Gemini Live API
@@ -84,6 +93,60 @@ npm run dev
 
 The frontend will be available at http://localhost:3000
 The backend API will be available at http://localhost:8000
+
+## 🚀 Deployment to Google Cloud Platform
+
+### Prerequisites
+1. Install Google Cloud SDK
+2. Create a GCP project
+3. Enable Cloud Run and Cloud Build APIs
+4. Set up Firebase project with Firestore
+
+### Quick Deploy
+
+Use the provided deployment script:
+
+```bash
+./deploy-working.sh
+```
+
+This will:
+- Build and deploy frontend to Cloud Run
+- Build and deploy backend to Cloud Run
+- Configure environment variables
+- Set up CORS and permissions
+
+### Manual Deployment
+
+1. **Deploy Frontend:**
+```bash
+cd frontend
+gcloud run deploy ai-oral-exam-frontend \
+  --source . \
+  --region us-central1 \
+  --project YOUR-PROJECT-ID \
+  --allow-unauthenticated
+```
+
+2. **Deploy Backend:**
+```bash
+cd backend
+gcloud run deploy ai-oral-exam-backend \
+  --source . \
+  --region us-central1 \
+  --project YOUR-PROJECT-ID \
+  --allow-unauthenticated \
+  --set-env-vars="OPENAI_API_KEY=$OPENAI_API_KEY,ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY,GOOGLE_API_KEY=$GOOGLE_API_KEY"
+```
+
+3. **Configure Firebase:**
+- Add Cloud Run URLs to Firebase authorized domains
+- Grant Cloud Run service account Firestore access:
+```bash
+gcloud projects add-iam-policy-binding FIREBASE-PROJECT \
+  --member="serviceAccount:YOUR-SERVICE-ACCOUNT@developer.gserviceaccount.com" \
+  --role="roles/datastore.user"
+```
 
 ## Project Structure
 
