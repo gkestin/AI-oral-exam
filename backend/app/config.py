@@ -31,6 +31,8 @@ class Settings(BaseSettings):
         "http://localhost:3003",
         "http://localhost:3004",
         "http://localhost:3005",
+        "https://ai-oral-exam-frontend-254272019109.us-central1.run.app",
+        "https://ai-oral-exam-frontend-rolaok3ova-uc.a.run.app",
     ])
     
     # LLM Defaults
