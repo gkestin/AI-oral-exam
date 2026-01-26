@@ -1,0 +1,68 @@
+steps:
+  # Build and push backend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/ai-oral-exam-backend:$COMMIT_SHA', './backend']
+    id: 'build-backend'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/ai-oral-exam-backend:$COMMIT_SHA']
+    id: 'push-backend'
+    waitFor: ['build-backend']
+
+  # Build and push frontend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/ai-oral-exam-frontend:$COMMIT_SHA', './frontend']
+    id: 'build-frontend'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/ai-oral-exam-frontend:$COMMIT_SHA']
+    id: 'push-frontend'
+    waitFor: ['build-frontend']
+
+  # Deploy backend to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'ai-oral-exam-backend'
+      - '--image=gcr.io/$PROJECT_ID/ai-oral-exam-backend:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars=CORS_ORIGINS=https://ai-oral-exam-frontend-$PROJECT_ID.a.run.app'
+      - '--memory=2Gi'
+      - '--cpu=2'
+      - '--max-instances=10'
+      - '--min-instances=1'
+    id: 'deploy-backend'
+    waitFor: ['push-backend']
+
+  # Deploy frontend to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'ai-oral-exam-frontend'
+      - '--image=gcr.io/$PROJECT_ID/ai-oral-exam-frontend:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars=NEXT_PUBLIC_API_URL=https://ai-oral-exam-backend-$PROJECT_ID.a.run.app'
+      - '--memory=1Gi'
+      - '--cpu=1'
+      - '--max-instances=10'
+      - '--min-instances=1'
+    id: 'deploy-frontend'
+    waitFor: ['push-frontend']
+
+images:
+  - 'gcr.io/$PROJECT_ID/ai-oral-exam-backend:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/ai-oral-exam-frontend:$COMMIT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+
+timeout: '30m'
