@@ -68,8 +68,12 @@ export default function EditAssignmentPage() {
 
         // Extract questions from knowledge base
         if (data.knowledgeBase?.text) {
-          const questionsMatch = data.knowledgeBase.text.match(/Exam Questions:\n(.*)/s);
-          setExamQuestions(questionsMatch ? questionsMatch[1] : data.knowledgeBase.text);
+          const questionsIndex = data.knowledgeBase.text.indexOf('Exam Questions:\n');
+          if (questionsIndex !== -1) {
+            setExamQuestions(data.knowledgeBase.text.substring(questionsIndex + 'Exam Questions:\n'.length));
+          } else {
+            setExamQuestions(data.knowledgeBase.text);
+          }
         }
 
         // Handle both old and new field names
