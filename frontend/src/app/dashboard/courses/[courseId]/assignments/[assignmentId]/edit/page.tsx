@@ -84,13 +84,16 @@ export default function EditAssignmentPage() {
 
         // Voice configuration
         if (data.voiceConfig) {
+          console.log('Loading voice config:', data.voiceConfig);
           setVoiceProvider(data.voiceConfig.provider || 'browser_tts');
-          if (data.voiceConfig.elevenLabs) {
+          if (data.voiceConfig.provider === 'elevenlabs' && data.voiceConfig.elevenLabs) {
             setElevenLabsMode(data.voiceConfig.elevenLabs.mode || 'dynamic');
             setElevenLabsAgentId(data.voiceConfig.elevenLabs.agentId || '');
             setElevenLabsModel(data.voiceConfig.elevenLabs.llmModel || 'gpt-4o');
             setElevenLabsVoice(data.voiceConfig.elevenLabs.voiceId || '21m00Tcm4TlvDq8ikWAM');
           }
+        } else {
+          console.log('No voice config found in assignment data');
         }
       } catch (err) {
         console.error('Failed to load assignment:', err);

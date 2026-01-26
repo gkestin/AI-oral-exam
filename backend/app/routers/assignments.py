@@ -54,6 +54,7 @@ async def create_assignment(
         time_limit_minutes=data.time_limit_minutes,
         grading=data.grading or Assignment.model_fields["grading"].default,
         knowledge_base=data.knowledge_base or Assignment.model_fields["knowledge_base"].default,
+        voice_config=data.voice_config,  # Add voice configuration
         is_published=data.is_published,
     )
     

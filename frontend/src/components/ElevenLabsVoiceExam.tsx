@@ -56,17 +56,34 @@ export default function ElevenLabsVoiceExam({
     onMessage: ({ message, source }) => {
       console.log('Message received:', message, 'from:', source);
 
-      // Add message to transcript
-      const newMessage: Message = {
-        role: source === 'user' ? 'user' : 'assistant',
-        content: message.text || message.content || '',
-        timestamp: new Date()
-      };
+      // Extract content from message object - it might be a string or an object
+      let content = '';
+      if (typeof message === 'string') {
+        content = message;
+      } else if (message?.text) {
+        content = message.text;
+      } else if (message?.content) {
+        content = message.content;
+      } else {
+        // Log the entire message object to understand its structure
+        console.log('Unknown message structure:', JSON.stringify(message));
+        content = JSON.stringify(message);
+      }
 
-      setMessages(prev => [...prev, newMessage]);
+      // Only add non-empty messages
+      if (content && content.trim()) {
+        // Add message to transcript
+        const newMessage: Message = {
+          role: source === 'user' ? 'user' : 'assistant',
+          content: content,
+          timestamp: new Date()
+        };
 
-      // Save to backend
-      saveMessageToBackend(newMessage);
+        setMessages(prev => [...prev, newMessage]);
+
+        // Save to backend
+        saveMessageToBackend(newMessage);
+      }
     },
     onError: (error) => {
       console.error('ElevenLabs error:', error);
@@ -80,6 +97,9 @@ export default function ElevenLabsVoiceExam({
       console.log('Connection status:', status);
     }
   });
+
+  // Track if we're already creating an agent to prevent duplicates
+  const creatingAgentRef = useRef(false);
 
   // Get or create agent ID from assignment configuration
   useEffect(() => {
@@ -98,6 +118,13 @@ export default function ElevenLabsVoiceExam({
         console.log('Using existing ElevenLabs agent:', elevenLabsConfig.agentId);
         setAgentId(elevenLabsConfig.agentId);
       } else if (elevenLabsConfig.mode === 'dynamic') {
+        // Prevent duplicate agent creation in React StrictMode
+        if (creatingAgentRef.current) {
+          console.log('Agent creation already in progress, skipping duplicate request');
+          return;
+        }
+        creatingAgentRef.current = true;
+
         // First student to access will create the agent
         // We should save this back to the assignment to reuse for other students
         try {
@@ -106,6 +133,7 @@ export default function ElevenLabsVoiceExam({
 
           if (!apiKey) {
             setError('ElevenLabs API key not configured');
+            creatingAgentRef.current = false;
             return;
           }
 
@@ -136,7 +164,11 @@ export default function ElevenLabsVoiceExam({
         } catch (err: any) {
           console.error('Failed to create dynamic agent:', err);
           setError(`Failed to create voice agent: ${err.message || 'Unknown error'}`);
+          creatingAgentRef.current = false;
         }
+
+        // Reset flag after successful creation
+        creatingAgentRef.current = false;
       } else {
         setError('Invalid ElevenLabs configuration - please configure an agent');
       }
@@ -207,15 +239,9 @@ export default function ElevenLabsVoiceExam({
         connectionType: 'webrtc' // Use WebRTC for better real-time performance
       });
 
-      // Save initial greeting
-      const greeting: Message = {
-        role: 'assistant',
-        content: `Hello! I'm your AI examiner for "${assignment.title}". ${assignment.instructions || 'Let\'s begin with your identity verification. Please state your full name.'}`,
-        timestamp: new Date()
-      };
-
-      setMessages([greeting]);
-      await saveMessageToBackend(greeting);
+      // Don't manually add a greeting - let the agent's first_message be captured by onMessage
+      // This prevents duplicate or cut-off messages
+      setMessages([]);
 
     } catch (err: any) {
       console.error('Failed to start session:', err);

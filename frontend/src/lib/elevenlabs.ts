@@ -13,12 +13,13 @@ interface CreateAgentConfig {
       name?: string;
       first_message: string;
       language: string;
-    };
-    prompt: {
-      prompt: string;
-      llm: string;
-      temperature?: number;
-      max_tokens?: number;
+      // The prompt object should be INSIDE the agent object
+      prompt: {
+        prompt: string;
+        llm: string;
+        temperature?: number;
+        max_tokens?: number;
+      };
     };
     tts?: {
       model_id?: string;
@@ -42,14 +43,17 @@ export async function createDynamicAgent(
     conversation_config: {
       agent: {
         name: `Exam Agent - ${assignment.title}`,
+        // Use the actual instructions from the assignment as the first message
         first_message: assignment.instructions ||
           `Hello! I'm your AI examiner for "${assignment.title}". Let's begin with your identity verification. Please state your full name.`,
-        language: assignment.voiceConfig?.elevenLabs?.language || 'en'
-      },
-      prompt: {
-        prompt: buildAgentPrompt(assignment),
-        llm: assignment.voiceConfig?.elevenLabs?.llmModel || 'gpt-4o', // Can be gpt-4o, claude-3-5-sonnet, etc.
-        temperature: assignment.voiceConfig?.elevenLabs?.temperature || 0.7
+        language: assignment.voiceConfig?.elevenLabs?.language || 'en',
+        // The prompt should be INSIDE the agent object!
+        prompt: {
+          // The prompt should contain ALL the exam context including instructions
+          prompt: buildAgentPromptWithInstructions(assignment),
+          llm: assignment.voiceConfig?.elevenLabs?.llmModel || 'gpt-4o', // Can be gpt-4o, claude-3-5-sonnet, etc.
+          temperature: assignment.voiceConfig?.elevenLabs?.temperature || 0.7
+        }
       },
       tts: {
         model_id: 'eleven_turbo_v2',
@@ -80,6 +84,7 @@ export async function createDynamicAgent(
     }
 
     const data = await response.json();
+    console.log('ElevenLabs API response:', JSON.stringify(data, null, 2));
     return data.agent_id;
   } catch (error) {
     console.error('Error creating ElevenLabs agent:', error);
@@ -88,7 +93,63 @@ export async function createDynamicAgent(
 }
 
 /**
- * Build comprehensive agent prompt from assignment
+ * Build comprehensive agent prompt with instructions from assignment
+ */
+function buildAgentPromptWithInstructions(assignment: Assignment): string {
+  // Start with the system prompt as the foundation
+  let prompt = assignment.systemPrompt || `You are an AI examiner conducting an oral examination.
+Be professional but friendly. Ask follow-up questions to assess understanding.
+Keep responses concise for natural conversation.`;
+
+  // Add exam instructions to guide how the AI should conduct the exam
+  if (assignment.instructions) {
+    prompt += `\n\nINSTRUCTIONS TO FOLLOW:\n${assignment.instructions}`;
+  }
+
+  // Add exam context
+  prompt += `\n\nExam Title: ${assignment.title}`;
+
+  if (assignment.description) {
+    prompt += `\nExam Description: ${assignment.description}`;
+  }
+
+  // Add exam questions if provided
+  if (assignment.knowledgeBase?.text) {
+    prompt += `\n\nEXAM QUESTIONS AND ANSWERS:\n${assignment.knowledgeBase.text}`;
+  }
+
+  // Add grading rubric context
+  if (assignment.grading?.enabled && assignment.grading.rubric.length > 0) {
+    prompt += `\n\nGrading Criteria:`;
+    assignment.grading.rubric.forEach(criteria => {
+      prompt += `\n- ${criteria.name}: ${criteria.description} (Max Points: ${criteria.maxPoints})`;
+    });
+    prompt += `\n\nPay attention to these criteria when evaluating responses.`;
+  }
+
+  // Add mode-specific instructions
+  switch (assignment.mode) {
+    case 'practice':
+      prompt += `\n\nThis is a PRACTICE session. Be helpful and provide hints when the student struggles. Offer constructive feedback.`;
+      break;
+    case 'interview':
+      prompt += `\n\nThis is an INTERVIEW. Focus on assessing relevant skills and experience. Ask behavioral questions.`;
+      break;
+    case 'oral_exam':
+      prompt += `\n\nThis is a FORMAL EXAM. Maintain professionalism. Do not provide hints unless the student is completely stuck.`;
+      break;
+  }
+
+  // Add time context if there's a limit
+  if (assignment.timeLimitMinutes) {
+    prompt += `\n\nTime Limit: ${assignment.timeLimitMinutes} minutes. Pace the conversation appropriately.`;
+  }
+
+  return prompt;
+}
+
+/**
+ * Build comprehensive agent prompt from assignment (legacy - kept for backward compatibility)
  */
 function buildAgentPrompt(assignment: Assignment): string {
   let prompt = assignment.systemPrompt || `You are an AI examiner conducting an oral examination.

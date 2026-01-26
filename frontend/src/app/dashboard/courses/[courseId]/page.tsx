@@ -70,6 +70,19 @@ export default function CourseDetailPage() {
       // Get full assignment details
       const originalAssignment = await api.assignments.get(courseId, assignmentId);
 
+      // Process voice configuration for duplication
+      let voiceConfig = originalAssignment.voiceConfig;
+      if (voiceConfig?.elevenLabs?.agentId) {
+        // Clear the agent ID for dynamic mode - a new agent will be created for the duplicated assignment
+        voiceConfig = {
+          ...voiceConfig,
+          elevenLabs: {
+            ...voiceConfig.elevenLabs,
+            agentId: undefined // Clear agent ID so a new one is created
+          }
+        };
+      }
+
       // Create new assignment as draft with modified title
       const newAssignment = await api.assignments.create(courseId, {
         title: newTitle,
@@ -82,6 +95,7 @@ export default function CourseDetailPage() {
         timeLimitMinutes: originalAssignment.timeLimitMinutes,
         grading: originalAssignment.grading,
         knowledgeBase: originalAssignment.knowledgeBase,
+        voiceConfig: voiceConfig, // Copy processed voice configuration
         isPublished: false // Always create as draft
       });
 
