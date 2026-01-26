@@ -29,12 +29,19 @@ async def test_model(model_name: str):
 
         print(f"   Using model string: {actual_model}")
 
-        response = await litellm.acompletion(
-            model=actual_model,
-            messages=[{"role": "user", "content": "Say 'Hello' and nothing else."}],
-            max_tokens=10,
-            temperature=0.1
-        )
+        kwargs = {
+            "model": actual_model,
+            "messages": [{"role": "user", "content": "Say 'Hello' and nothing else."}],
+            "max_tokens": 10,
+            "temperature": 0.1
+        }
+
+        # For Gemini models, pass API key directly
+        if actual_model.startswith("gemini/"):
+            api_key = os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_API_KEY')
+            kwargs["api_key"] = api_key
+
+        response = await litellm.acompletion(**kwargs)
         content = response.choices[0].message.content
         print(f"✅ {model_name} works! Response: {content}")
         return True

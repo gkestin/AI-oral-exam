@@ -14,7 +14,6 @@ import { Button, Card, CardHeader, CardTitle, CardDescription, CardContent } fro
 import { formatDate } from '@/lib/utils';
 import type { Course, AssignmentSummary, Assignment } from '@/types';
 import { SESSION_MODE_LABELS } from '@/types';
-import { Copy } from 'lucide-react';
 
 export default function CourseDetailPage() {
   const params = useParams();
@@ -159,27 +158,6 @@ export default function CourseDetailPage() {
         )}
       </div>
 
-      {/* Instructor info */}
-      {isInstructor && (
-        <Card className="bg-indigo-50 border-indigo-200">
-          <CardContent className="py-4">
-            <div className="flex flex-wrap gap-6 text-sm">
-              <div>
-                <span className="text-indigo-600 font-medium">Course ID:</span>{' '}
-                <code className="bg-white px-2 py-0.5 rounded text-indigo-900">{courseId}</code>
-              </div>
-              <div>
-                <span className="text-indigo-600 font-medium">Student Passcode:</span>{' '}
-                <code className="bg-white px-2 py-0.5 rounded text-indigo-900">{course.studentPasscode}</code>
-              </div>
-              <div>
-                <span className="text-indigo-600 font-medium">Instructor Passcode:</span>{' '}
-                <code className="bg-white px-2 py-0.5 rounded text-indigo-900">{course.instructorPasscode}</code>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Assignments */}
       <div>
@@ -207,13 +185,13 @@ export default function CourseDetailPage() {
               </div>
               <h3 className="font-medium text-slate-900 mb-1">No assignments yet</h3>
               <p className="text-slate-600 mb-4">
-                {isInstructor 
+                {isInstructor
                   ? 'Create your first assignment to get started.'
                   : 'Your instructor hasn\'t created any assignments yet.'}
               </p>
               {isInstructor && (
                 <Link href={`/dashboard/courses/${courseId}/assignments/new`}>
-                  <Button size="sm">Create Assignment</Button>
+                  <Button size="sm">New Assignment</Button>
                 </Link>
               )}
             </CardContent>

@@ -10,7 +10,7 @@ from datetime import datetime
 
 from ..models import (
     Assignment, AssignmentCreate, AssignmentUpdate, AssignmentSummary,
-    User, UserRole, SessionStatus,
+    User, UserRole, SessionStatus, Session,
 )
 from ..services import (
     get_current_user, get_firestore_service, FirestoreService,
@@ -96,17 +96,34 @@ async def list_assignments(
     # Sort by created_at descending
     assignments.sort(key=lambda a: a.created_at or datetime.min, reverse=True)
     
-    # Convert to summaries (skip session counts for now to avoid more queries)
+    # Convert to summaries with actual session counts
     summaries = []
     for assignment in assignments:
+        # Get sessions for this assignment
+        sessions = await db.list_subcollection(
+            "courses", course_id, "sessions", Session
+        )
+
+        # Filter sessions for this assignment
+        assignment_sessions = [s for s in sessions if s.assignment_id == assignment.id]
+
+        # For students, only count their own sessions
+        if is_student(role):
+            assignment_sessions = [s for s in assignment_sessions if s.user_id == user.uid]
+
+        # Count total and completed sessions
+        session_count = len(assignment_sessions)
+        # For now, count completed sessions as "graded" since grades are in separate collection
+        graded_count = len([s for s in assignment_sessions if is_status(s.status, "completed")])
+
         summaries.append(AssignmentSummary(
             id=assignment.id,
             title=assignment.title,
             mode=assignment.mode,
             due_date=assignment.due_date,
             is_published=assignment.is_published,
-            session_count=0,  # Skip counting for now
-            graded_count=0,
+            session_count=session_count,
+            graded_count=graded_count,
         ))
     
     return summaries

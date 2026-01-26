@@ -164,6 +164,65 @@ export default function AssignmentDetailPage() {
         </Card>
       )}
 
+      {/* Assignment Configuration (Instructor only) */}
+      {isInstructor && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Assignment Configuration</CardTitle>
+            <CardDescription>Technical settings for this assignment</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <h4 className="text-sm font-medium text-slate-900 mb-1">Voice Configuration</h4>
+                <p className="text-sm text-slate-600">
+                  {assignment.voiceConfig?.provider === 'elevenlabs'
+                    ? 'ElevenLabs AI Voice'
+                    : assignment.voiceConfig?.provider === 'browser'
+                    ? 'Browser Text-to-Speech'
+                    : 'Default Voice'}
+                  {assignment.voiceConfig?.elevenLabs?.model && (
+                    <span className="block text-xs text-slate-500 mt-1">
+                      Model: {assignment.voiceConfig.elevenLabs.model}
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-slate-900 mb-1">Time Limit</h4>
+                <p className="text-sm text-slate-600">
+                  {assignment.timeLimitMinutes
+                    ? `${assignment.timeLimitMinutes} minutes`
+                    : 'No time limit'}
+                </p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-slate-900 mb-1">Max Attempts</h4>
+                <p className="text-sm text-slate-600">
+                  {assignment.maxAttempts || 'Unlimited'}
+                </p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-slate-900 mb-1">Input Mode</h4>
+                <p className="text-sm text-slate-600">
+                  {assignment.inputMode === 'voice_only' && 'Voice Only'}
+                  {assignment.inputMode === 'text_only' && 'Text Only'}
+                  {assignment.inputMode === 'voice_and_text' && 'Voice and Text'}
+                </p>
+              </div>
+              {assignment.systemPrompt && (
+                <div className="sm:col-span-2">
+                  <h4 className="text-sm font-medium text-slate-900 mb-1">Custom System Prompt</h4>
+                  <p className="text-sm text-slate-600 bg-slate-50 p-2 rounded text-xs font-mono line-clamp-3">
+                    {assignment.systemPrompt}
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Start Session (for students) */}
       {!isInstructor && assignment.isPublished && (
         <Card className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
@@ -174,10 +233,10 @@ export default function AssignmentDetailPage() {
                 ? `This session has a ${assignment.timeLimitMinutes} minute time limit.`
                 : 'Take your time and answer thoughtfully.'}
             </p>
-            <Button 
+            <Button
               onClick={handleStartSession}
               disabled={startingSession}
-              className="bg-white text-indigo-600 hover:bg-indigo-50"
+              className="bg-white text-indigo-700 hover:bg-gray-100 font-semibold shadow-lg"
             >
               {startingSession ? (
                 <span className="flex items-center gap-2">
@@ -207,16 +266,18 @@ export default function AssignmentDetailPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div>
-                <h4 className="text-sm font-medium text-slate-900 mb-2">Grading Models</h4>
-                <div className="flex flex-wrap gap-2">
-                  {assignment.grading.models.map((model) => (
-                    <span key={model} className="px-2 py-1 bg-slate-100 rounded-full text-xs text-slate-600">
-                      {model}
-                    </span>
-                  ))}
+              {isInstructor && (
+                <div>
+                  <h4 className="text-sm font-medium text-slate-900 mb-2">Grading Models</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {assignment.grading.models.map((model) => (
+                      <span key={model} className="px-2 py-1 bg-slate-100 rounded-full text-xs text-slate-600">
+                        {model}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
               <div>
                 <h4 className="text-sm font-medium text-slate-900 mb-2">Rubric</h4>
                 <div className="grid gap-2">

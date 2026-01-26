@@ -156,45 +156,43 @@ class GeminiLiveHandler:
     ) -> str:
         """Build comprehensive system prompt for the examiner."""
 
-        prompt = f"""You are an AI oral examiner conducting a voice-based assessment.
+        # Start with custom system prompt if provided, otherwise use default
+        if assignment.get('system_prompt'):
+            base_prompt = assignment['system_prompt']
+        else:
+            base_prompt = """You are an AI examiner conducting an oral examination.
+Be professional but friendly. Ask follow-up questions to assess understanding.
+Keep responses concise for natural conversation."""
 
-STUDENT CONTEXT:
-- Name: {student.get('name', 'Student')}
-- ID: {student.get('id', 'Unknown')}
-- Course: {assignment.get('course_name', 'Unknown Course')}
+        # Build the full prompt
+        prompt = f"""{base_prompt}
 
-ASSIGNMENT CONTEXT:
-- Title: {assignment.get('title', 'Oral Examination')}
-- Type: {assignment.get('type', 'oral_exam')}
-- Topics to Cover: {', '.join(assignment.get('topics', ['General knowledge']))}
-- Duration Target: {assignment.get('duration_minutes', 15)} minutes
+Exam Title: {assignment.get('title', 'Oral Examination')}"""
 
-INSTRUCTIONS:
-1. You are conducting a 3-phase examination:
-   - Phase 1 (Authentication): Verify student identity by asking for their name and student ID
-   - Phase 2 (Project Discussion): Ask about their specific project work and decisions
-   - Phase 3 (Case Analysis): Present a case and probe their understanding
+        # Add instructions if provided
+        if assignment.get('instructions'):
+            prompt += f"\n\n{assignment['instructions']}"
 
-2. Voice Interaction Guidelines:
-   - Keep responses concise (2-3 sentences max)
-   - Ask one question at a time
-   - Allow for natural pauses
-   - If student seems stuck, offer hints or rephrase
-   - Be encouraging but maintain academic rigor
+        # Add exam questions from knowledge base if available
+        if assignment.get('topics') and len(assignment['topics']) > 0:
+            # Filter out generic/default topics
+            real_topics = [t for t in assignment['topics']
+                          if t not in ["Introduction", "Project Overview", "Technical Details", "Challenges", "Conclusion"]]
+            if real_topics:
+                prompt += f"\n\n"
+                for topic in real_topics:
+                    prompt += f"{topic}\n"
 
-3. Assessment Focus:
-   - Depth of understanding over memorization
-   - Application of concepts
-   - Critical thinking
-   - Clear articulation of ideas
+        # Add mode-specific instructions
+        mode = assignment.get('type', 'oral_exam')
+        if mode == 'oral_exam':
+            prompt += f"\n\nThis is a FORMAL EXAM. Maintain professionalism. Do not provide hints unless the student is completely stuck."
+        elif mode == 'practice':
+            prompt += f"\n\nThis is a PRACTICE SESSION. Be encouraging and provide helpful feedback."
 
-4. Behavioral Notes:
-   - Be professional but approachable
-   - Adjust difficulty based on student responses
-   - Acknowledge good answers before moving on
-   - If detecting stress, offer brief encouragement
-
-Remember: This is a voice conversation. Be natural, clear, and conversational."""
+        # Add time limit if specified
+        if assignment.get('duration_minutes'):
+            prompt += f"\n\nTime Limit: {assignment['duration_minutes']} minutes. Pace the conversation appropriately."
 
         # Add rubric if provided
         if rubric := assignment.get('rubric'):
@@ -210,11 +208,12 @@ Remember: This is a voice conversation. Be natural, clear, and conversational.""
         return "\n".join(formatted)
 
     async def _generate_initial_greeting(self, session_id: str) -> str:
-        """Generate contextual initial greeting."""
+        """Generate contextual initial greeting based on assignment configuration."""
         session = self.active_sessions[session_id]
-        student_name = session['student'].get('name', 'there')
+        assignment_title = session['assignment'].get('title', 'this examination')
 
-        greeting = f"Hello {student_name}! Welcome to your oral examination. I'm your AI examiner today. Before we begin, I need to verify your identity. Could you please state your full name and student ID number?"
+        # Generate greeting based on mode and available questions
+        greeting = f"Hello! I'm your AI examiner for \"{assignment_title}\". Let's begin."
 
         # Add to transcript
         session['transcript'].append(TranscriptMessage(
@@ -650,14 +649,31 @@ Remember: This is a voice conversation. Be natural, clear, and conversational.""
                     return
 
                 # Prepare contexts
+                # Extract topics from knowledge base or system prompt
+                topics = []
+                if assignment.knowledge_base and assignment.knowledge_base.text:
+                    # Try to extract exam questions if they exist
+                    lines = assignment.knowledge_base.text.split('\n')
+                    topics = [line.strip() for line in lines if line.strip()][:5]
+                elif assignment.system_prompt:
+                    # Use system prompt lines as topics
+                    lines = assignment.system_prompt.split('\n')
+                    topics = [line.strip() for line in lines if line.strip()][:5]
+                else:
+                    # Default topics
+                    topics = ["Introduction", "Project Overview", "Technical Details", "Challenges", "Conclusion"]
+
                 assignment_context = {
                     "title": assignment.title,
-                    "type": assignment.type,
-                    "topics": assignment.prompt.split('\n')[:5],  # Extract main topics
-                    "duration_minutes": assignment.duration_minutes,
+                    "type": assignment.mode.value if hasattr(assignment.mode, 'value') else assignment.mode,
+                    "topics": topics,
+                    "duration_minutes": assignment.time_limit_minutes or 20,
                     "course_name": course_id,  # Could fetch actual course name
-                    "project_name": "your capstone project",  # Could be dynamic
-                    "cases": []  # Could load from assignment
+                    "project_name": "your project",  # Could be dynamic
+                    "cases": [],  # Could load from assignment
+                    "system_prompt": assignment.system_prompt,
+                    "instructions": assignment.instructions,
+                    "voice_config": assignment.voice_config
                 }
 
                 student_context = {

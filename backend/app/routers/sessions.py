@@ -125,12 +125,26 @@ async def list_sessions(
     from datetime import datetime
     sessions.sort(key=lambda s: s.created_at or datetime.min, reverse=True)
     
+    # Get unique student IDs for batch lookup
+    student_ids = list(set(s.student_id for s in sessions))
+
+    # Batch fetch student info
+    student_names = {}
+    for student_id in student_ids:
+        try:
+            student = await db.get_document("users", student_id, User)
+            if student:
+                student_names[student_id] = student.display_name or student.email or "Unknown Student"
+            else:
+                student_names[student_id] = "Unknown Student"
+        except Exception:
+            student_names[student_id] = "Unknown Student"
+
     # Convert to summaries
     summaries = []
     for session in sessions:
-        # Get student info (skip for performance - can optimize later)
-        student_name = "Student"  # Placeholder to avoid N+1 queries
-        
+        student_name = student_names.get(session.student_id, "Unknown Student")
+
         summaries.append(SessionSummary(
             id=session.id,
             assignment_id=session.assignment_id,

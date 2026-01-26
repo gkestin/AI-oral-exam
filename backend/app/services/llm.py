@@ -35,15 +35,16 @@ class GradingResult(BaseModel):
 def init_llm():
     """Initialize LiteLLM with API keys."""
     settings = get_settings()
-    
+
     # Set API keys for LiteLLM
     litellm.openai_key = settings.openai_api_key
     litellm.anthropic_key = settings.anthropic_api_key
-    
-    # For Gemini, set via environment (LiteLLM reads GOOGLE_API_KEY)
+
+    # For Gemini, set both environment variables (LiteLLM might read either)
     import os
     os.environ["GOOGLE_API_KEY"] = settings.google_api_key
-    
+    os.environ["GEMINI_API_KEY"] = settings.google_api_key
+
     # Enable caching for development
     if settings.debug:
         litellm.cache = litellm.Cache()
@@ -86,6 +87,11 @@ async def call_llm(
         "max_tokens": max_tokens,
         "temperature": temperature,
     }
+
+    # For Gemini models, pass the API key directly
+    if model.startswith("gemini/"):
+        settings = get_settings()
+        kwargs["api_key"] = settings.google_api_key
 
     # JSON mode handling varies by provider
     if json_mode:

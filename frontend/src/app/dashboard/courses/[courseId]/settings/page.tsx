@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { api, ApiError } from '@/lib/api';
 import { Button, Input, Label, Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui';
+import { Copy } from 'lucide-react';
 import type { Course } from '@/types';
 
 export default function CourseSettingsPage() {
@@ -23,6 +24,11 @@ export default function CourseSettingsPage() {
   const [description, setDescription] = useState('');
   const [instructorPasscode, setInstructorPasscode] = useState('');
   const [studentPasscode, setStudentPasscode] = useState('');
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [editingInstructorCode, setEditingInstructorCode] = useState(false);
+  const [editingStudentCode, setEditingStudentCode] = useState(false);
+  const [tempInstructorCode, setTempInstructorCode] = useState('');
+  const [tempStudentCode, setTempStudentCode] = useState('');
 
   useEffect(() => {
     loadCourse();
@@ -73,6 +79,16 @@ export default function CourseSettingsPage() {
   function generatePasscode() {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
   }
+
+  const copyToClipboard = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   if (loading) {
     return (
@@ -146,28 +162,132 @@ export default function CourseSettingsPage() {
             </div>
 
             <div className="border-t pt-6">
-              <h3 className="text-lg font-medium mb-4">Access Codes</h3>
+              <h3 className="text-lg font-medium mb-4">Course Access Information</h3>
               <p className="text-sm text-gray-600 mb-4">
-                Share these codes with instructors and students to let them join your course.
+                Share the Course ID with students to help them find your course, then provide the appropriate passcode for enrollment.
               </p>
 
               <div className="space-y-4">
+                {/* Course ID - Read Only */}
+                <div>
+                  <Label htmlFor="courseId">Course ID</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="courseId"
+                      value={courseId}
+                      readOnly
+                      className="bg-gray-50 font-mono"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => copyToClipboard(courseId, 'courseId')}
+                      className="min-w-[100px]"
+                    >
+                      {copiedField === 'courseId' ? (
+                        <span className="flex items-center gap-1 text-green-600">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Copied
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          <Copy className="w-4 h-4" />
+                          Copy
+                        </span>
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Unique identifier for this course - students use this to find your course
+                  </p>
+                </div>
+
                 <div>
                   <Label htmlFor="instructorPasscode">Instructor Passcode</Label>
                   <div className="flex gap-2">
-                    <Input
-                      id="instructorPasscode"
-                      value={instructorPasscode}
-                      onChange={(e) => setInstructorPasscode(e.target.value)}
-                      placeholder="Leave empty to disable"
-                    />
-                    <Button 
-                      type="button" 
-                      variant="outline"
-                      onClick={() => setInstructorPasscode(generatePasscode())}
-                    >
-                      Generate
-                    </Button>
+                    {editingInstructorCode ? (
+                      <>
+                        <Input
+                          id="instructorPasscode"
+                          value={tempInstructorCode}
+                          onChange={(e) => setTempInstructorCode(e.target.value)}
+                          placeholder="Enter new code or leave empty"
+                          className="font-mono"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setTempInstructorCode(generatePasscode())}
+                          className="min-w-[100px]"
+                        >
+                          Generate
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            setInstructorPasscode(tempInstructorCode);
+                            setEditingInstructorCode(false);
+                          }}
+                          className="min-w-[80px]"
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setTempInstructorCode(instructorPasscode);
+                            setEditingInstructorCode(false);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Input
+                          id="instructorPasscode"
+                          value={instructorPasscode || '(not set)'}
+                          readOnly
+                          className="bg-gray-50 font-mono"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setTempInstructorCode(instructorPasscode);
+                            setEditingInstructorCode(true);
+                          }}
+                          className="min-w-[80px]"
+                        >
+                          Edit
+                        </Button>
+                        {instructorPasscode && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => copyToClipboard(instructorPasscode, 'instructorCode')}
+                            className="min-w-[100px]"
+                          >
+                            {copiedField === 'instructorCode' ? (
+                              <span className="flex items-center gap-1 text-green-600">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Copied
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1">
+                                <Copy className="w-4 h-4" />
+                                Copy
+                              </span>
+                            )}
+                          </Button>
+                        )}
+                      </>
+                    )}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     Others can use this code to join as an instructor
@@ -177,19 +297,87 @@ export default function CourseSettingsPage() {
                 <div>
                   <Label htmlFor="studentPasscode">Student Passcode</Label>
                   <div className="flex gap-2">
-                    <Input
-                      id="studentPasscode"
-                      value={studentPasscode}
-                      onChange={(e) => setStudentPasscode(e.target.value)}
-                      placeholder="Leave empty to disable"
-                    />
-                    <Button 
-                      type="button" 
-                      variant="outline"
-                      onClick={() => setStudentPasscode(generatePasscode())}
-                    >
-                      Generate
-                    </Button>
+                    {editingStudentCode ? (
+                      <>
+                        <Input
+                          id="studentPasscode"
+                          value={tempStudentCode}
+                          onChange={(e) => setTempStudentCode(e.target.value)}
+                          placeholder="Enter new code or leave empty"
+                          className="font-mono"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setTempStudentCode(generatePasscode())}
+                          className="min-w-[100px]"
+                        >
+                          Generate
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            setStudentPasscode(tempStudentCode);
+                            setEditingStudentCode(false);
+                          }}
+                          className="min-w-[80px]"
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setTempStudentCode(studentPasscode);
+                            setEditingStudentCode(false);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Input
+                          id="studentPasscode"
+                          value={studentPasscode || '(not set)'}
+                          readOnly
+                          className="bg-gray-50 font-mono"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setTempStudentCode(studentPasscode);
+                            setEditingStudentCode(true);
+                          }}
+                          className="min-w-[80px]"
+                        >
+                          Edit
+                        </Button>
+                        {studentPasscode && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => copyToClipboard(studentPasscode, 'studentCode')}
+                            className="min-w-[100px]"
+                          >
+                            {copiedField === 'studentCode' ? (
+                              <span className="flex items-center gap-1 text-green-600">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Copied
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1">
+                                <Copy className="w-4 h-4" />
+                                Copy
+                              </span>
+                            )}
+                          </Button>
+                        )}
+                      </>
+                    )}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     Students can use this code to join the course
