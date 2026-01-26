@@ -82,7 +82,6 @@ export default function AssignmentsPage() {
         knowledgeBase: fullAssignment.knowledgeBase,
         grading: fullAssignment.grading,
         dueDate: fullAssignment.dueDate,
-        maxAttempts: fullAssignment.maxAttempts,
         isPublished: false, // Always create as draft
       };
 
