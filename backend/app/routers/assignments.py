@@ -109,7 +109,7 @@ async def list_assignments(
 
         # For students, only count their own sessions
         if is_student(role):
-            assignment_sessions = [s for s in assignment_sessions if s.student_id == user.uid]
+            assignment_sessions = [s for s in assignment_sessions if s.student_id == user.id]
 
         # Count total and completed sessions
         session_count = len(assignment_sessions)
