@@ -13,13 +13,13 @@ import { api, ApiError } from '@/lib/api';
 import { Button, Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui';
 import { useCourseContext } from '@/lib/contexts/course-context';
 import { formatDate } from '@/lib/utils';
-import type { Assignment } from '@/types';
+import type { Assignment, AssignmentSummary } from '@/types';
 import { SESSION_MODE_LABELS } from '@/types';
 
 export default function AssignmentsPage() {
   const { selectedCourse } = useCourseContext();
   const router = useRouter();
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [assignments, setAssignments] = useState<AssignmentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
@@ -47,7 +47,7 @@ export default function AssignmentsPage() {
     }
   };
 
-  const handleDuplicate = async (assignment: Assignment, e: React.MouseEvent) => {
+  const handleDuplicate = async (assignment: AssignmentSummary, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
