@@ -69,9 +69,26 @@ async def add_process_time_header(request: Request, call_next):
 async def global_exception_handler(request: Request, exc: Exception):
     """Handle uncaught exceptions."""
     print(f"Unhandled error: {exc}")
+
+    # Get the origin from the request
+    origin = request.headers.get("origin", "*")
+
+    # Check if origin is allowed
+    settings = get_settings()
+    if origin in settings.cors_origins or "*" in settings.cors_origins:
+        headers = {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    else:
+        headers = {}
+
     return JSONResponse(
         status_code=500,
         content={"detail": "An internal error occurred", "error": str(exc)},
+        headers=headers,
     )
 
 
