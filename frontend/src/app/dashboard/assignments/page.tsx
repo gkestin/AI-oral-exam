@@ -273,17 +273,9 @@ export default function AssignmentsPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2 text-sm">
-                      {assignment.description && (
-                        <p className="text-slate-600 line-clamp-2">{assignment.description}</p>
-                      )}
                       {assignment.dueDate && (
                         <p className="text-slate-500">
                           Due: {formatDate(assignment.dueDate)}
-                        </p>
-                      )}
-                      {assignment.maxAttempts && (
-                        <p className="text-slate-500">
-                          Max attempts: {assignment.maxAttempts}
                         </p>
                       )}
                       {(assignment.sessionCount > 0 || isInstructor || !isInstructor) && (
@@ -341,9 +333,6 @@ export default function AssignmentsPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-4 text-sm text-slate-600">
-                          {assignment.description && (
-                            <p className="line-clamp-1">{assignment.description}</p>
-                          )}
                           {assignment.dueDate && (
                             <span className="flex items-center gap-1">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
