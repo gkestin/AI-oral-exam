@@ -59,7 +59,10 @@ class Assignment(FirestoreModel):
     
     # Knowledge base
     knowledge_base: KnowledgeBase = Field(default_factory=KnowledgeBase)
-    
+
+    # Voice configuration
+    voice_config: Optional[dict] = None  # Voice provider settings (elevenlabs, openai, etc.)
+
     # Status
     is_published: bool = False
     is_active: bool = True
@@ -77,6 +80,7 @@ class AssignmentCreate(CamelCaseModel):
     time_limit_minutes: Optional[int] = None
     grading: Optional[GradingConfig] = None
     knowledge_base: Optional[KnowledgeBase] = None
+    voice_config: Optional[dict] = None
     is_published: bool = False
 
 
@@ -92,6 +96,7 @@ class AssignmentUpdate(CamelCaseModel):
     time_limit_minutes: Optional[int] = None
     grading: Optional[GradingConfig] = None
     knowledge_base: Optional[KnowledgeBase] = None
+    voice_config: Optional[dict] = None
     is_published: Optional[bool] = None
     is_active: Optional[bool] = None
 

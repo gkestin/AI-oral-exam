@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@elevenlabs/react": "^0.13.0",
     "@google/genai": "^1.38.0",
     "@google/generative-ai": "^0.24.1",
     "@radix-ui/react-dialog": "^1.0.5",

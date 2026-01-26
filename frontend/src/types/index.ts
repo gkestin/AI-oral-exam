@@ -125,6 +125,38 @@ export interface KnowledgeBase {
   allowStudentUploads: boolean;
 }
 
+export type VoiceProvider = 'browser_tts' | 'elevenlabs' | 'openai_realtime' | 'gemini_live';
+
+export interface VoiceConfig {
+  provider: VoiceProvider;
+
+  // Browser TTS settings (current working option)
+  // Uses Web Speech API + Gemini for text processing
+
+  // ElevenLabs settings (when provider === 'elevenlabs')
+  elevenLabs?: {
+    mode: 'dynamic' | 'agent_id'; // Dynamic = create from settings, agent_id = use existing
+    agentId?: string; // For pre-created agents
+    llmModel?: string; // For dynamic: gpt-4o, claude-3-5-sonnet, etc.
+    voiceId?: string; // For dynamic: rachel, adam, etc.
+    temperature?: number; // For dynamic
+    language?: string; // For dynamic
+  };
+
+  // OpenAI Realtime settings (when provider === 'openai_realtime')
+  openAI?: {
+    model?: string; // gpt-4o-realtime, etc.
+    voice?: string; // alloy, echo, etc.
+    temperature?: number;
+  };
+
+  // Gemini Live settings (when provider === 'gemini_live')
+  gemini?: {
+    model?: string; // gemini-2.0-flash-exp, etc.
+    voice?: string; // Gemini voice options
+  };
+}
+
 export interface Assignment {
   id: string;
   courseId: string;
@@ -138,6 +170,7 @@ export interface Assignment {
   timeLimitMinutes?: number;
   grading: GradingConfig;
   knowledgeBase: KnowledgeBase;
+  voiceConfig?: VoiceConfig;
   isPublished: boolean;
   isActive: boolean;
   createdAt: Date;
@@ -155,6 +188,7 @@ export interface AssignmentCreate {
   timeLimitMinutes?: number;
   grading?: Partial<GradingConfig>;
   knowledgeBase?: Partial<KnowledgeBase>;
+  voiceConfig?: VoiceConfig;
   isPublished?: boolean;
 }
 
@@ -169,6 +203,7 @@ export interface AssignmentUpdate {
   timeLimitMinutes?: number | null;
   grading?: Partial<GradingConfig>;
   knowledgeBase?: Partial<KnowledgeBase>;
+  voiceConfig?: VoiceConfig;
   isPublished?: boolean;
   isActive?: boolean;
 }

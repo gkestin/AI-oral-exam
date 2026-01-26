@@ -66,7 +66,8 @@ async def grade_session_task(
         
         # Format transcript for grading
         transcript_text = "\n".join([
-            f"[{msg.role.upper()}]: {msg.content}"
+            f"[{msg['role'].upper() if isinstance(msg, dict) else msg.role.upper()}]: "
+            f"{msg['content'] if isinstance(msg, dict) else msg.content}"
             for msg in session.transcript
         ])
         

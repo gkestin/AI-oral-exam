@@ -12,6 +12,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
 import { Button, Card, CardHeader, CardTitle, CardContent } from '@/components/ui';
 import GeminiVoiceExam from '@/components/GeminiVoiceExam';
+import ElevenLabsVoiceExam from '@/components/ElevenLabsVoiceExam';
 import { formatDuration } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import {
@@ -193,12 +194,34 @@ export default function SessionPage() {
             </div>
 
             {sessionMode === 'voice' ? (
-              <GeminiVoiceExam
-                sessionId={sessionId}
-                courseId={courseId}
-                assignment={assignment}
-                onSessionEnd={handleSessionEnd}
-              />
+              (() => {
+                // Choose voice provider based on assignment configuration
+                const voiceProvider = assignment.voiceConfig?.provider || 'browser_tts';
+
+                switch (voiceProvider) {
+                  case 'elevenlabs':
+                    return (
+                      <ElevenLabsVoiceExam
+                        sessionId={sessionId}
+                        courseId={courseId}
+                        assignment={assignment}
+                        onSessionEnd={handleSessionEnd}
+                      />
+                    );
+                  case 'browser_tts':
+                  case 'gemini_live':
+                  default:
+                    return (
+                      <GeminiVoiceExam
+                        sessionId={sessionId}
+                        courseId={courseId}
+                        assignment={assignment}
+                        onSessionEnd={handleSessionEnd}
+                      />
+                    );
+                  // Note: OpenAI Realtime can be added here later
+                }
+              })()
             ) : (
               <div className="text-center py-8 bg-gray-50 rounded-lg">
                 <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-400" />
@@ -216,14 +239,25 @@ export default function SessionPage() {
 
   // Session in progress
   if (session.status === 'in_progress') {
+    const voiceProvider = assignment.voiceConfig?.provider || 'browser_tts';
+
     return (
       <div className="max-w-4xl mx-auto space-y-6">
-        <GeminiVoiceExam
-          sessionId={sessionId}
-          courseId={courseId}
-          assignment={assignment}
-          onSessionEnd={handleSessionEnd}
-        />
+        {voiceProvider === 'elevenlabs' ? (
+          <ElevenLabsVoiceExam
+            sessionId={sessionId}
+            courseId={courseId}
+            assignment={assignment}
+            onSessionEnd={handleSessionEnd}
+          />
+        ) : (
+          <GeminiVoiceExam
+            sessionId={sessionId}
+            courseId={courseId}
+            assignment={assignment}
+            onSessionEnd={handleSessionEnd}
+          />
+        )}
       </div>
     );
   }

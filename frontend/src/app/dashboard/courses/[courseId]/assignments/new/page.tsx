@@ -12,7 +12,8 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Button, Input, Label, Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui';
 import { SESSION_MODE_LABELS, SESSION_MODE_DESCRIPTIONS, AVAILABLE_GRADING_MODELS } from '@/types';
-import type { SessionMode, RubricCategory } from '@/types';
+import type { SessionMode, RubricCategory, VoiceProvider, VoiceConfig } from '@/types';
+import { ELEVENLABS_LLM_MODELS, ELEVENLABS_VOICES } from '@/lib/elevenlabs';
 
 const DEFAULT_RUBRIC: RubricCategory[] = [
   { name: 'Content Knowledge', description: 'Demonstrates understanding of core concepts', maxPoints: 5, weight: 1 },
@@ -42,6 +43,13 @@ export default function NewAssignmentPage() {
   );
   const [rubric, setRubric] = useState<RubricCategory[]>(DEFAULT_RUBRIC);
 
+  // Voice provider state
+  const [voiceProvider, setVoiceProvider] = useState<VoiceProvider>('browser_tts');
+  const [elevenLabsMode, setElevenLabsMode] = useState<'dynamic' | 'agent_id'>('dynamic');
+  const [elevenLabsAgentId, setElevenLabsAgentId] = useState('');
+  const [elevenLabsModel, setElevenLabsModel] = useState('gpt-4o');
+  const [elevenLabsVoice, setElevenLabsVoice] = useState('21m00Tcm4TlvDq8ikWAM'); // Rachel's voice ID
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -53,6 +61,24 @@ export default function NewAssignmentPage() {
         text: `Exam Questions:\n${examQuestions}`
       } : undefined;
 
+      // Build voice configuration
+      let voiceConfig: VoiceConfig | undefined;
+      if (voiceProvider !== 'browser_tts') {
+        voiceConfig = {
+          provider: voiceProvider,
+          elevenLabs: voiceProvider === 'elevenlabs' ? {
+            mode: elevenLabsMode,
+            agentId: elevenLabsMode === 'agent_id' ? elevenLabsAgentId : undefined,
+            llmModel: elevenLabsMode === 'dynamic' ? elevenLabsModel : undefined,
+            voiceId: elevenLabsMode === 'dynamic' ? elevenLabsVoice : undefined,
+            language: 'en',
+            temperature: 0.7
+          } : undefined
+        };
+      } else {
+        voiceConfig = { provider: 'browser_tts' };
+      }
+
       const assignment = await api.assignments.create(courseId, {
         title,
         description: description || undefined,
@@ -61,6 +87,7 @@ export default function NewAssignmentPage() {
         systemPrompt: systemPrompt || undefined,
         timeLimitMinutes: durationMinutes,
         knowledgeBase,
+        voiceConfig,
         grading: {
           enabled: gradingEnabled,
           timing: 'immediate',
@@ -256,6 +283,151 @@ export default function NewAssignmentPage() {
                 The AI can generate questions dynamically or use these as a guide
               </p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Voice Provider Configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Voice Interaction</CardTitle>
+            <CardDescription>Configure how students interact with the AI examiner</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <Label>Voice Provider</Label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className={`
+                  flex flex-col p-4 rounded-lg border-2 cursor-pointer transition-all
+                  ${voiceProvider === 'browser_tts'
+                    ? 'border-indigo-500 bg-indigo-50'
+                    : 'border-slate-200 hover:border-slate-300'}
+                `}>
+                  <input
+                    type="radio"
+                    name="voiceProvider"
+                    value="browser_tts"
+                    checked={voiceProvider === 'browser_tts'}
+                    onChange={() => setVoiceProvider('browser_tts')}
+                    className="sr-only"
+                    disabled={loading}
+                  />
+                  <span className="font-medium text-slate-900">Browser TTS</span>
+                  <span className="text-sm text-slate-500 mt-1">
+                    Uses browser speech API with Gemini processing (default)
+                  </span>
+                </label>
+
+                <label className={`
+                  flex flex-col p-4 rounded-lg border-2 cursor-pointer transition-all
+                  ${voiceProvider === 'elevenlabs'
+                    ? 'border-indigo-500 bg-indigo-50'
+                    : 'border-slate-200 hover:border-slate-300'}
+                `}>
+                  <input
+                    type="radio"
+                    name="voiceProvider"
+                    value="elevenlabs"
+                    checked={voiceProvider === 'elevenlabs'}
+                    onChange={() => setVoiceProvider('elevenlabs')}
+                    className="sr-only"
+                    disabled={loading}
+                  />
+                  <span className="font-medium text-slate-900">ElevenLabs</span>
+                  <span className="text-sm text-slate-500 mt-1">
+                    Native voice conversation with advanced AI models
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* ElevenLabs Configuration */}
+            {voiceProvider === 'elevenlabs' && (
+              <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+                <div className="space-y-3">
+                  <Label>Configuration Mode</Label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        value="dynamic"
+                        checked={elevenLabsMode === 'dynamic'}
+                        onChange={() => setElevenLabsMode('dynamic')}
+                        disabled={loading}
+                      />
+                      <span>Dynamic (Recommended)</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        value="agent_id"
+                        checked={elevenLabsMode === 'agent_id'}
+                        onChange={() => setElevenLabsMode('agent_id')}
+                        disabled={loading}
+                      />
+                      <span>Use Existing Agent ID</span>
+                    </label>
+                  </div>
+                </div>
+
+                {elevenLabsMode === 'dynamic' ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="elevenLabsModel">AI Model</Label>
+                      <select
+                        id="elevenLabsModel"
+                        value={elevenLabsModel}
+                        onChange={(e) => setElevenLabsModel(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        disabled={loading}
+                      >
+                        {ELEVENLABS_LLM_MODELS.map(model => (
+                          <option key={model.id} value={model.id}>
+                            {model.name}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-slate-500">
+                        Choose the AI model for conversation processing
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="elevenLabsVoice">Voice</Label>
+                      <select
+                        id="elevenLabsVoice"
+                        value={elevenLabsVoice}
+                        onChange={(e) => setElevenLabsVoice(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        disabled={loading}
+                      >
+                        {ELEVENLABS_VOICES.map(voice => (
+                          <option key={voice.id} value={voice.id}>
+                            {voice.name}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-slate-500">
+                        Select the voice for the AI examiner
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="elevenLabsAgentId">Agent ID</Label>
+                    <Input
+                      id="elevenLabsAgentId"
+                      placeholder="Enter your ElevenLabs Agent ID"
+                      value={elevenLabsAgentId}
+                      onChange={(e) => setElevenLabsAgentId(e.target.value)}
+                      disabled={loading}
+                    />
+                    <p className="text-xs text-slate-500">
+                      Use an existing agent from your ElevenLabs account
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
