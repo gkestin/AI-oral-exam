@@ -47,6 +47,7 @@ export default function GeminiVoiceExam({
   const chatRef = useRef<any>(null); // Store the chat session
   const sessionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Use refs for state that needs to be accessed in event handlers
   const isSpeakingRef = useRef(false);
@@ -157,6 +158,11 @@ Keep responses concise for natural conversation.`;
       window.speechSynthesis.cancel();
     };
   }, []);
+
+  // Auto-scroll to bottom when messages or transcript change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, transcript]);
 
   // Timer for session duration
   useEffect(() => {
@@ -556,63 +562,82 @@ Keep responses concise for natural conversation.`;
             )}
           </div>
 
-          {/* Messages */}
-          <div className="h-96 overflow-y-auto mb-6 space-y-4 p-4 bg-gray-50 rounded-lg">
-            {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className={`flex gap-3 max-w-[80%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    msg.role === 'user' ? 'bg-blue-500' : 'bg-purple-500'
-                  }`}>
-                    {msg.role === 'user' ?
-                      <User className="w-4 h-4 text-white" /> :
-                      <Bot className="w-4 h-4 text-white" />
-                    }
-                  </div>
-                  <div className={`px-4 py-2 rounded-lg ${
-                    msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-white border'
-                  }`}>
-                    <p>{msg.content}</p>
-                    <p className={`text-xs mt-1 ${
-                      msg.role === 'user' ? 'text-blue-200' : 'text-gray-500'
+          {/* Messages Container with Status Indicators */}
+          <div className="relative mb-6">
+            {/* Messages */}
+            <div className="h-96 overflow-y-auto space-y-4 p-4 bg-gray-50 rounded-lg pb-16">
+              {messages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`flex gap-3 max-w-[80%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      msg.role === 'user' ? 'bg-blue-500' : 'bg-purple-500'
                     }`}>
-                      {msg.timestamp.toLocaleTimeString()}
-                    </p>
+                      {msg.role === 'user' ?
+                        <User className="w-4 h-4 text-white" /> :
+                        <Bot className="w-4 h-4 text-white" />
+                      }
+                    </div>
+                    <div className={`px-4 py-2 rounded-lg ${
+                      msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-white border'
+                    }`}>
+                      <p>{msg.content}</p>
+                      <p className={`text-xs mt-1 ${
+                        msg.role === 'user' ? 'text-blue-200' : 'text-gray-500'
+                      }`}>
+                        {msg.timestamp.toLocaleTimeString()}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
 
-            {/* Current transcript */}
-            {transcript && !isSpeaking && (
-              <div className="flex justify-end">
-                <div className="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg italic">
-                  {transcript}...
+              {/* Current interim transcript */}
+              {transcript && !isSpeaking && (
+                <div className="flex justify-end">
+                  <div className="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg italic opacity-60">
+                    {transcript}...
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Processing/Speaking indicator */}
-            {(isProcessing || isSpeaking) && (
-              <div className="flex justify-start">
-                <div className="bg-gray-100 px-4 py-2 rounded-lg flex items-center gap-2">
-                  {isSpeaking ? (
-                    <>
-                      <Volume2 className="w-4 h-4 text-purple-600 animate-pulse" />
-                      <span className="text-gray-600">Speaking...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-gray-600">Thinking...</span>
-                    </>
-                  )}
+              {/* Auto-scroll anchor */}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Fixed Status Indicators at Bottom */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 pointer-events-none">
+              {/* Listening indicator */}
+              {isListening && !isSpeaking && !isProcessing && (
+                <div className="flex justify-center mb-2">
+                  <div className="bg-green-100 px-4 py-2 rounded-lg flex items-center gap-2 shadow-md pointer-events-auto">
+                    <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse" />
+                    <span className="text-green-700">Listening...</span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+
+              {/* Processing/Speaking indicator */}
+              {(isProcessing || isSpeaking) && (
+                <div className="flex justify-center">
+                  <div className="bg-gray-100 px-4 py-2 rounded-lg flex items-center gap-2 shadow-md pointer-events-auto">
+                    {isSpeaking ? (
+                      <>
+                        <Volume2 className="w-4 h-4 text-purple-600 animate-pulse" />
+                        <span className="text-gray-600">Speaking...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-gray-600">Thinking...</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Controls */}

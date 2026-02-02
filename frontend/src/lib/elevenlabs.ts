@@ -28,6 +28,12 @@ interface CreateAgentConfig {
       similarity_boost?: number;
       speed?: number;
     };
+    asr?: {
+      quality?: 'high';
+      provider?: 'elevenlabs' | 'scribe_realtime';
+      user_input_audio_format?: string;
+      keywords?: string[];
+    };
   };
 }
 
@@ -61,7 +67,16 @@ export async function createDynamicAgent(
         stability: 0.5,
         similarity_boost: 0.8,
         speed: 1.0
-      }
+      },
+      // Enable Scribe Realtime for tentative transcripts (interim transcriptions)
+      asr: {
+        quality: 'high',
+        provider: 'scribe_realtime',  // This enables tentative transcripts!
+        // Note: Language detection doesn't work with scribe_realtime yet
+        // So we use the explicit language from the assignment
+      },
+      // Explicitly enable client events we want to receive
+      client_events: ['audio', 'agent_response', 'user_transcript', 'tentative_user_transcript', 'interruption']
     }
   };
 

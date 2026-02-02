@@ -36,25 +36,31 @@ export default function ElevenLabsVoiceExam({
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [agentId, setAgentId] = useState<string | null>(null);
+  const [tentativeTranscript, setTentativeTranscript] = useState('');
+  const [currentMode, setCurrentMode] = useState<'listening' | 'speaking' | null>(null);
 
   const sessionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Initialize ElevenLabs conversation
   const conversation = useConversation({
     onConnect: ({ conversationId }) => {
-      console.log('Connected to ElevenLabs conversation:', conversationId);
       setIsConnecting(false);
       setError(null);
     },
     onDisconnect: () => {
-      console.log('Disconnected from ElevenLabs conversation');
       if (!sessionEnded) {
         setError('Connection lost. Please refresh and try again.');
       }
     },
     onMessage: ({ message, source }) => {
-      console.log('Message received:', message, 'from:', source);
+
+      // Clear tentative transcript when message is finalized
+      if (source === 'user') {
+        setTentativeTranscript('');
+      }
 
       // Extract content from message object - it might be a string or an object
       let content = '';
@@ -68,8 +74,7 @@ export default function ElevenLabsVoiceExam({
         } else if (msgObj.content) {
           content = msgObj.content;
         } else {
-          // Log the entire message object to understand its structure
-          console.log('Unknown message structure:', JSON.stringify(message));
+          // Fallback to stringifying the message
           content = JSON.stringify(message);
         }
       } else {
@@ -92,17 +97,55 @@ export default function ElevenLabsVoiceExam({
       }
     },
     onError: (error: any) => {
-      console.error('ElevenLabs error:', error);
       const errorMessage = typeof error === 'string' ? error :
                          (error?.message || error?.toString() || 'Unknown error');
       setError(`Voice connection error: ${errorMessage}`);
       setIsConnecting(false);
     },
     onModeChange: ({ mode }) => {
-      console.log('Conversation mode changed:', mode);
+      console.log('[Mode Change] New mode:', mode, 'Previous:', currentMode, 'Status:', conversation.status);
+      setCurrentMode(mode as 'listening' | 'speaking');
+
+      // Start/stop browser speech recognition based on mode
+      // Only process if we're connected
+      if (conversation.status === 'connected' && recognitionRef.current) {
+        if (mode === 'listening') {
+          console.log('[Recognition] Mode is listening - ensuring recognition is running...');
+          // Always try to start when in listening mode
+          // The recognition API will ignore if already started
+          try {
+            recognitionRef.current.start();
+            console.log('[Recognition] Start command sent');
+          } catch (e: any) {
+            if (e.message && e.message.includes('already started')) {
+              console.log('[Recognition] Already running (good)');
+            } else {
+              console.log('[Recognition] Start failed:', e.message);
+              // Try again after a short delay
+              setTimeout(() => {
+                try {
+                  recognitionRef.current.start();
+                  console.log('[Recognition] Retry successful');
+                } catch (retryError) {
+                  console.log('[Recognition] Retry also failed');
+                }
+              }, 200);
+            }
+          }
+        } else if (mode === 'speaking') {
+          console.log('[Recognition] Mode is speaking - stopping recognition...');
+          try {
+            recognitionRef.current.stop();
+            // DON'T clear tentativeTranscript here - let it stay visible until the message appears
+            console.log('[Recognition] Stop command sent');
+          } catch (e: any) {
+            console.log('[Recognition] Stop failed (may already be stopped):', e.message);
+          }
+        }
+      }
     },
     onStatusChange: ({ status }) => {
-      console.log('Connection status:', status);
+      // Silently track status changes
     }
   });
 
@@ -187,6 +230,108 @@ export default function ElevenLabsVoiceExam({
     setupAgent();
   }, [assignment]);
 
+  // Initialize browser speech recognition for interim transcripts
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+          console.log('[Recognition] Started successfully');
+        };
+
+        recognition.onresult = (event: any) => {
+          let interimTranscript = '';
+          let finalTranscript = '';
+
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript;
+            } else {
+              interimTranscript += transcript;
+            }
+          }
+
+          if (interimTranscript) {
+            console.log('[Recognition] Interim:', interimTranscript.substring(0, 50) + '...');
+            setTentativeTranscript(interimTranscript);
+          }
+          if (finalTranscript) {
+            console.log('[Recognition] Final:', finalTranscript.substring(0, 50) + '...');
+            // DON'T clear the tentative transcript here!
+            // Keep showing it until ElevenLabs actually creates the message
+            // This prevents the gap between interim disappearing and final appearing
+            // The tentative will be cleared in onMessage when the actual message arrives
+          }
+        };
+
+        recognition.onerror = (event: any) => {
+          console.log('[Recognition] Error:', event.error);
+          // Try to restart if we're still connected and not ended
+          if (conversation.status === 'connected' && !sessionEnded) {
+            setTimeout(() => {
+              try {
+                console.log('[Recognition] Attempting restart after error...');
+                recognition.start();
+              } catch (e) {
+                console.log('[Recognition] Restart after error failed');
+              }
+            }, 500);
+          }
+        };
+
+        recognition.onend = () => {
+          console.log('[Recognition] Ended. Status:', conversation.status, 'Mode:', currentMode, 'SessionEnded:', sessionEnded);
+
+          // Always try to restart if conversation is connected and session not ended
+          // This ensures we're always ready to capture speech when in listening mode
+          if (conversation.status === 'connected' && !sessionEnded) {
+            // If we're currently in listening mode, restart immediately
+            // If in speaking mode, we'll restart when mode changes back to listening
+            if (currentMode === 'listening') {
+              console.log('[Recognition] In listening mode - restarting immediately...');
+              setTimeout(() => {
+                try {
+                  recognition.start();
+                  console.log('[Recognition] Restarted successfully');
+                } catch (e) {
+                  console.log('[Recognition] Restart failed, will retry on next mode change');
+                }
+              }, 50);
+            } else {
+              console.log('[Recognition] In speaking mode - will restart when mode changes to listening');
+            }
+          } else {
+            console.log('[Recognition] Not restarting (disconnected or session ended)');
+          }
+        };
+
+        recognitionRef.current = recognition;
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
+    };
+  }, [conversation.status, sessionStarted, sessionEnded, currentMode]);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, tentativeTranscript]);
+
   // Timer for session duration
   useEffect(() => {
     if (sessionStarted && !sessionEnded && assignment.timeLimitMinutes) {
@@ -249,6 +394,15 @@ export default function ElevenLabsVoiceExam({
         connectionType: 'webrtc' // Use WebRTC for better real-time performance
       });
 
+      // Start browser speech recognition for interim transcripts
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.start();
+        } catch (e: any) {
+          // Silently handle errors - speech recognition is a nice-to-have feature
+        }
+      }
+
       // Don't manually add a greeting - let the agent's first_message be captured by onMessage
       // This prevents duplicate or cut-off messages
       setMessages([]);
@@ -263,6 +417,19 @@ export default function ElevenLabsVoiceExam({
 
   const handleEndSession = async () => {
     setSessionEnded(true);
+
+    // Stop browser speech recognition
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+        console.log('Stopped browser speech recognition on session end');
+      } catch (e) {
+        // Ignore errors during cleanup
+      }
+    }
+
+    // Clear tentative transcript
+    setTentativeTranscript('');
 
     // End ElevenLabs conversation
     if (conversation.status === 'connected') {
@@ -368,55 +535,97 @@ Keep responses concise for natural conversation.`;
             )}
           </div>
 
-          {/* Messages */}
-          <div className="h-96 overflow-y-auto mb-6 space-y-4 p-4 bg-gray-50 rounded-lg">
-            {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className={`flex gap-3 max-w-[80%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    msg.role === 'user' ? 'bg-blue-500' : 'bg-purple-500'
-                  }`}>
-                    {msg.role === 'user' ?
-                      <User className="w-4 h-4 text-white" /> :
-                      <Bot className="w-4 h-4 text-white" />
-                    }
+          {/* Messages Container with Status Indicators */}
+          <div className="relative mb-6">
+            {/* Messages */}
+            <div className="h-96 overflow-y-auto space-y-4 p-4 bg-gray-50 rounded-lg pb-16">
+              {messages.map((msg, idx) => {
+                // Check if this is the most recent AI message and AI is currently speaking
+                const isCurrentlySpeaking = msg.role === 'assistant' &&
+                  idx === messages.length - 1 &&
+                  conversation.status === 'connected' &&
+                  conversation.isSpeaking;
+
+                return (
+                  <div
+                    key={idx}
+                    className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`flex gap-3 max-w-[80%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                        msg.role === 'user' ? 'bg-blue-500' :
+                        isCurrentlySpeaking ? 'bg-purple-500 shadow-lg shadow-purple-400/50 animate-pulse' : 'bg-purple-500'
+                      }`}>
+                        {msg.role === 'user' ?
+                          <User className="w-4 h-4 text-white" /> :
+                          <Bot className="w-4 h-4 text-white" />
+                        }
+                      </div>
+                      <div className={`px-4 py-2 rounded-lg transition-all duration-300 ${
+                        msg.role === 'user' ?
+                          'bg-blue-500 text-white' :
+                          isCurrentlySpeaking ?
+                            'bg-white border-2 border-purple-300 shadow-lg shadow-purple-200/50' :
+                            'bg-white border'
+                      }`}>
+                        <p>{msg.content}</p>
+                        <p className={`text-xs mt-1 ${
+                          msg.role === 'user' ? 'text-blue-200' : 'text-gray-500'
+                        }`}>
+                          {msg.timestamp.toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className={`px-4 py-2 rounded-lg ${
-                    msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-white border'
-                  }`}>
-                    <p>{msg.content}</p>
-                    <p className={`text-xs mt-1 ${
-                      msg.role === 'user' ? 'text-blue-200' : 'text-gray-500'
-                    }`}>
-                      {msg.timestamp.toLocaleTimeString()}
-                    </p>
+                );
+              })}
+
+              {/* Tentative transcript while user is speaking */}
+              {tentativeTranscript && tentativeTranscript.trim() && (
+                <div className="flex justify-end transition-all duration-300 ease-out">
+                  <div className="flex gap-3 max-w-[80%] flex-row-reverse">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-blue-400 animate-pulse">
+                      <User className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg transition-opacity duration-300">
+                      <p className="italic">{tentativeTranscript}...</p>
+                      <p className="text-xs text-blue-500 mt-1 animate-pulse">Speaking...</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )}
 
-            {/* Connection indicator */}
-            {isConnecting && (
-              <div className="flex justify-center">
-                <div className="bg-gray-100 px-4 py-2 rounded-lg flex items-center gap-2">
+              {/* Auto-scroll anchor */}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Fixed Status Indicators at Bottom */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 pointer-events-none">
+              {/* Connection indicator */}
+              <div className={`flex justify-center mb-2 transition-all duration-300 ${
+                isConnecting ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-4'
+              }`}>
+                <div className="bg-gray-100 px-4 py-2 rounded-lg flex items-center gap-2 shadow-md pointer-events-auto">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span className="text-gray-600">Connecting to AI...</span>
                 </div>
               </div>
-            )}
 
-            {/* Speaking indicator */}
-            {conversation.status === 'connected' && conversation.isSpeaking && (
-              <div className="flex justify-start">
-                <div className="bg-purple-100 px-4 py-2 rounded-lg flex items-center gap-2">
-                  <Volume2 className="w-4 h-4 text-purple-600 animate-pulse" />
-                  <span className="text-purple-600">AI is speaking...</span>
+              {/* Speaking indicator with smooth fade */}
+              <div className={`flex justify-center transition-all duration-500 ease-in-out ${
+                conversation.status === 'connected' && conversation.isSpeaking
+                  ? 'opacity-100 transform translate-y-0'
+                  : 'opacity-0 transform translate-y-2'
+              }`}>
+                <div className="bg-gradient-to-r from-purple-100 to-purple-50 px-4 py-2 rounded-lg flex items-center gap-2 shadow-md pointer-events-auto">
+                  <div className="relative">
+                    <Volume2 className="w-4 h-4 text-purple-600 animate-pulse" />
+                    <div className="absolute inset-0 w-4 h-4 bg-purple-400 rounded-full blur-md opacity-60 animate-ping" />
+                  </div>
+                  <span className="text-purple-600 font-medium">AI is speaking...</span>
                 </div>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Controls */}
@@ -477,6 +686,7 @@ Keep responses concise for natural conversation.`;
               </p>
             </div>
           )}
+
 
           {/* ElevenLabs Attribution */}
           <div className="mt-4 text-xs text-gray-500 text-center">
