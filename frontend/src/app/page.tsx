@@ -45,11 +45,13 @@ export default function LandingPage() {
             <div className="flex items-center gap-4">
               <Link href="/auth">
                 <Button variant="ghost" className="text-white hover:bg-white/10">
-                  Sign In
+                  Login
                 </Button>
               </Link>
               <Link href="/auth?mode=register">
-                <Button>Get Started</Button>
+                <Button className="bg-white !text-slate-900 hover:bg-white/90">
+                  Get Started
+                </Button>
               </Link>
             </div>
           </div>
@@ -58,64 +60,63 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <main className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto text-center">
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
-            Transform Assessment with{' '}
-            <span className="text-gradient">AI-Powered</span> Oral Exams
+        <div className="max-w-4xl mx-auto text-center">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-light text-white mb-6 leading-tight">
+            AI Oral Examination Tool
           </h1>
-          <p className="text-xl text-slate-300 mb-10 max-w-3xl mx-auto">
-            Scalable, personalized oral examinations powered by voice AI and 
-            multi-model grading. Give every student a fair, comprehensive assessment.
+          <p className="text-lg text-slate-300 mb-12 max-w-2xl mx-auto font-light">
+            A voice-based assessment tool that enables natural conversations between students and AI,
+            with intelligent grading across multiple evaluation models.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/auth?mode=register">
-              <Button size="lg" className="w-full sm:w-auto">
-                Start Free Trial
+              <Button size="lg" className="w-full sm:w-auto bg-white !text-slate-900 hover:bg-white/90">
+                Get Started
               </Button>
             </Link>
-            <Link href="#features">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto border-white/20 text-white hover:bg-white/10">
-                Learn More
+            <Link href="/auth">
+              <Button size="lg" variant="ghost" className="w-full sm:w-auto border border-white/20 text-white hover:bg-white/10">
+                Login
               </Button>
             </Link>
           </div>
         </div>
 
         {/* Features Grid */}
-        <div id="features" className="max-w-6xl mx-auto mt-32 grid md:grid-cols-3 gap-8">
-          <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-8 border border-white/10">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-6">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+        <div className="max-w-5xl mx-auto mt-24 grid md:grid-cols-3 gap-6">
+          <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">
+            <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center mb-4">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-white mb-3">Voice-First Interaction</h3>
-            <p className="text-slate-400">
-              Natural voice conversations powered by Gemini Live API. Real-time transcription and intelligent follow-up questions.
+            <h3 className="text-lg font-medium text-white mb-2">Voice Conversations</h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Students speak naturally with AI examiners. Real-time transcription captures every response.
             </p>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-8 border border-white/10">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mb-6">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">
+            <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center mb-4">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-white mb-3">Multi-Model Grading</h3>
-            <p className="text-slate-400">
-              Fair assessment using GPT-4, Claude, and Gemini. Deliberation rounds ensure consistent, unbiased evaluation.
+            <h3 className="text-lg font-medium text-white mb-2">Automated Grading</h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Multiple AI models evaluate responses. Deliberation ensures fair and consistent scores.
             </p>
           </div>
 
-          <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-8 border border-white/10">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center mb-6">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+          <div className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10">
+            <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center mb-4">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-white mb-3">Flexible Modes</h3>
-            <p className="text-slate-400">
-              Oral exams, practice sessions, AI tutoring, mock interviews, and Socratic discussions—all in one platform.
+            <h3 className="text-lg font-medium text-white mb-2">Multiple Formats</h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Formal exams, practice sessions, tutoring, interviews, and Socratic discussions.
             </p>
           </div>
         </div>
