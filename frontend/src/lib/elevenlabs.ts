@@ -71,12 +71,11 @@ export async function createDynamicAgent(
       // Enable Scribe Realtime for tentative transcripts (interim transcriptions)
       asr: {
         quality: 'high',
-        provider: 'scribe_realtime',  // This enables tentative transcripts!
+        provider: 'scribe_realtime' as const  // This enables tentative transcripts!
         // Note: Language detection doesn't work with scribe_realtime yet
         // So we use the explicit language from the assignment
-      },
-      // Explicitly enable client events we want to receive
-      client_events: ['audio', 'agent_response', 'user_transcript', 'tentative_user_transcript', 'interruption']
+      }
+      // Note: client_events configuration removed as it's not part of the type definition
     }
   };
 
