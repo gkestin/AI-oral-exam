@@ -142,7 +142,6 @@ gcloud run deploy ai-oral-exam-backend \
     --memory 2Gi \
     --cpu 2 \
     --max-instances 5 \
-    --set-env-vars="CORS_ORIGINS=$FRONTEND_URL" \
     --project $PROJECT_ID \
     --quiet
 
