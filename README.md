@@ -10,14 +10,24 @@ The platform is fully deployed and operational on Google Cloud Platform:
 - **Backend API**: https://ai-oral-exam-backend-254272019109.us-central1.run.app
 - **GCP Project**: planar-compass-485504-c0
 - **Firebase Project**: ai-oral-exam
+- **Last Deployment**: February 3, 2026
+  - Frontend: Revision 00005-qjs
+  - Backend: Revision 00013-nnn
+
+## Recent Updates
+
+- **Enhanced Voice Experience**: Implemented real-time interim transcripts during voice conversations using browser Speech Recognition API
+- **Seamless Transcription**: Interim transcripts now smoothly transition to final transcripts without gaps
+- **Improved UI**: Simplified landing page with professional academic design
+- **Deployment Fixes**: Resolved CORS configuration issues for reliable deployments
 
 ## Features
 
-- **Voice-First Interaction**: Natural voice conversations powered by Gemini Live API
+- **Voice-First Interaction**: Natural voice conversations powered by ElevenLabs Conversational AI
+- **Real-time Interim Transcripts**: Live transcription feedback during voice sessions
 - **Multi-Model Grading**: Fair assessment using GPT-4, Claude, and Gemini with deliberation rounds
 - **Flexible Modes**: Oral exams, practice sessions, AI tutoring, mock interviews, and Socratic discussions
 - **Custom Rubrics**: Define grading categories and point scales per assignment
-- **Real-time Transcription**: Live transcription during voice sessions
 - **Course Management**: Create courses, enroll students, manage assignments
 
 ## Tech Stack
@@ -104,17 +114,23 @@ The backend API will be available at http://localhost:8000
 
 ### Quick Deploy
 
-Use the provided deployment script:
+Use the provided deployment scripts:
 
+**Full deployment (frontend + backend):**
 ```bash
 ./deploy-working.sh
 ```
 
+**Frontend only deployment:**
+```bash
+./deploy-frontend.sh
+```
+
 This will:
 - Build and deploy frontend to Cloud Run
-- Build and deploy backend to Cloud Run
+- Build and deploy backend to Cloud Run (if using full deployment)
 - Configure environment variables
-- Set up CORS and permissions
+- Set up proper CORS configuration
 
 ### Manual Deployment
 
