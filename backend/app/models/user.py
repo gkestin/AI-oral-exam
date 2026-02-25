@@ -16,7 +16,7 @@ class UserApiKeys(CamelCaseModel):
     anthropic_encrypted: Optional[str] = None
     google_encrypted: Optional[str] = None
     elevenlabs_encrypted: Optional[str] = None
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
 
 
 class User(FirestoreModel):

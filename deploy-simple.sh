@@ -48,7 +48,7 @@ gcloud run deploy ai-oral-exam-backend \
     --max-instances 5 \
     --min-instances 0 \
     --port 8080 \
-    --set-env-vars="OPENAI_API_KEY=${OPENAI_API_KEY},ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY},GOOGLE_API_KEY=${GOOGLE_API_KEY},GEMINI_API_KEY=${GEMINI_API_KEY},ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}"
+    --set-env-vars="OPENAI_API_KEY=${OPENAI_API_KEY},ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY},GOOGLE_API_KEY=${GOOGLE_API_KEY},GEMINI_API_KEY=${GEMINI_API_KEY},ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY},ENCRYPTION_KEY=${ENCRYPTION_KEY}"
 
 # Get backend URL
 BACKEND_URL=$(gcloud run services describe ai-oral-exam-backend --region=$REGION --format='value(status.url)')

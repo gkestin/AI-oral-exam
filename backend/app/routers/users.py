@@ -64,10 +64,10 @@ async def set_shared_key_preference(
 async def get_api_keys(user: User = Depends(get_current_user)):
     keys = user.api_keys
     return {
-        "openai_configured": bool(keys and keys.openai_encrypted),
-        "anthropic_configured": bool(keys and keys.anthropic_encrypted),
-        "google_configured": bool(keys and keys.google_encrypted),
-        "elevenlabs_configured": bool(keys and keys.elevenlabs_encrypted),
+        "openaiConfigured": bool(keys and keys.openai_encrypted),
+        "anthropicConfigured": bool(keys and keys.anthropic_encrypted),
+        "googleConfigured": bool(keys and keys.google_encrypted),
+        "elevenlabsConfigured": bool(keys and keys.elevenlabs_encrypted),
     }
 
 

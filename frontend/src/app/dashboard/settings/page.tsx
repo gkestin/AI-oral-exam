@@ -128,23 +128,35 @@ export default function SettingsPage() {
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
               <p className="text-amber-800">
                 Verify your email to unlock unlimited Harvard shared-key access.
+                A verification email was sent when you signed up — check your inbox and spam folder.
+              </p>
+              <p className="text-amber-700 text-xs">
+                After clicking the link in the email, sign out and sign back in for it to take effect.
               </p>
               {verificationMessage && (
-                <p className="text-green-700 text-xs">{verificationMessage}</p>
+                <p className={`text-xs ${verificationMessage.startsWith('Verification email sent') ? 'text-green-700' : 'text-red-600'}`}>
+                  {verificationMessage}
+                </p>
               )}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={async () => {
+                  setVerificationMessage(null);
                   try {
                     await resendVerificationEmail();
-                    setVerificationMessage('Verification email sent! Check your inbox, then refresh this page.');
+                    setVerificationMessage('Verification email sent! Check your inbox, then sign out and back in.');
                   } catch (err: any) {
-                    setVerificationMessage(err.message || 'Failed to send verification email.');
+                    const msg = err?.code === 'auth/too-many-requests'
+                      ? 'A verification email was already sent recently. Please check your inbox (and spam folder) and wait a few minutes before trying again.'
+                      : err?.code === 'auth/email-already-verified'
+                      ? 'Your email is already verified! Sign out and sign back in to update your status.'
+                      : (err.message || 'Failed to send verification email.');
+                    setVerificationMessage(msg);
                   }
                 }}
               >
-                Send Verification Email
+                Resend Verification Email
               </Button>
             </div>
           )}
