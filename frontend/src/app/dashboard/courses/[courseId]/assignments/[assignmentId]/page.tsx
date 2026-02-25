@@ -23,10 +23,12 @@ export default function AssignmentDetailPage() {
   
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [testSessions, setTestSessions] = useState<SessionSummary[]>([]);
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [startingSession, setStartingSession] = useState(false);
+  const [startingTestSession, setStartingTestSession] = useState(false);
   const [isInstructor, setIsInstructor] = useState(false);
   const [keyPolicy, setKeyPolicy] = useState<UserKeyPolicy | null>(null);
 
@@ -44,10 +46,21 @@ export default function AssignmentDetailPage() {
       ]);
       const keyPolicyData = await api.users.getKeyPolicy(courseId);
       setAssignment(assignmentData);
-      setSessions(sessionsData);
       setCourse(courseData);
-      setIsInstructor(courseData.instructorPasscode !== '***');
       setKeyPolicy(keyPolicyData);
+
+      const instructor = courseData.instructorPasscode !== '***';
+      setIsInstructor(instructor);
+
+      if (instructor) {
+        const studentSessions = sessionsData.filter(s => !s.isTest);
+        const instrTestSessions = sessionsData.filter(s => s.isTest);
+        setSessions(studentSessions);
+        setTestSessions(instrTestSessions);
+      } else {
+        setSessions(sessionsData);
+        setTestSessions([]);
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.detail);
@@ -73,6 +86,21 @@ export default function AssignmentDetailPage() {
         setError('Failed to start session');
       }
       setStartingSession(false);
+    }
+  };
+
+  const handleStartTestSession = async () => {
+    setStartingTestSession(true);
+    try {
+      const session = await api.sessions.create(courseId, { assignmentId, isTest: true });
+      router.push(`/dashboard/courses/${courseId}/sessions/${session.id}`);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.detail);
+      } else {
+        setError('Failed to start test session');
+      }
+      setStartingTestSession(false);
     }
   };
 
@@ -150,6 +178,29 @@ export default function AssignmentDetailPage() {
           </p>
         </div>
         <div className="flex gap-3">
+          {isInstructor && (
+            <Button
+              onClick={handleStartTestSession}
+              disabled={startingTestSession || !!sessionBlocked}
+              variant="outline"
+              className="border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+            >
+              {startingTestSession ? (
+                <span className="flex items-center gap-2">
+                  <div className="spinner w-4 h-4" />
+                  Starting...
+                </span>
+              ) : (
+                <>
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Test Assignment
+                </>
+              )}
+            </Button>
+          )}
           {isInstructor && !assignment.isPublished && (
             <Button onClick={handlePublish}>
               Publish
@@ -331,10 +382,60 @@ export default function AssignmentDetailPage() {
         </Card>
       )}
 
+      {/* My Test Sessions (Instructor only) */}
+      {isInstructor && testSessions.length > 0 && (
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900 mb-4">My Test Sessions</h2>
+          <div className="space-y-2">
+            {testSessions.map((session) => (
+              <Link
+                key={session.id}
+                href={`/dashboard/courses/${courseId}/sessions/${session.id}`}
+              >
+                <Card className="card-hover cursor-pointer border-indigo-100">
+                  <CardContent className="py-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                          Test
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
+                          {session.status.replace('_', ' ')}
+                        </span>
+                        {session.startedAt && (
+                          <span className="text-sm text-slate-500">
+                            {formatDate(session.startedAt)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 text-sm">
+                        {session.durationSeconds && (
+                          <span className="text-slate-500">
+                            {formatDuration(session.durationSeconds)}
+                          </span>
+                        )}
+                        {session.finalScore !== undefined && session.finalScore !== null && (
+                          <span className="font-medium text-slate-900">
+                            {session.finalScore}%
+                          </span>
+                        )}
+                        <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Sessions List */}
       <div>
         <h2 className="text-xl font-semibold text-slate-900 mb-4">
-          {isInstructor ? 'All Sessions' : 'Your Sessions'}
+          {isInstructor ? 'Student Sessions' : 'Your Sessions'}
         </h2>
         
         {sessions.length === 0 ? (

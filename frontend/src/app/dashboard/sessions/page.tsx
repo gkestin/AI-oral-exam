@@ -182,6 +182,11 @@ export default function SessionsPage() {
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
                       <div className="flex items-center gap-3">
+                        {session.isTest && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                            Test
+                          </span>
+                        )}
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
                           {session.status.replace('_', ' ')}
                         </span>
@@ -245,6 +250,11 @@ export default function SessionsPage() {
                           <div className="flex items-center justify-between">
                             <div className="space-y-1">
                               <div className="flex items-center gap-3">
+                                {session.isTest && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                                    Test
+                                  </span>
+                                )}
                                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(session.status)}`}>
                                   {session.status.replace('_', ' ')}
                                 </span>

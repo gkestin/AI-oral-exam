@@ -274,11 +274,12 @@ async def get_assignment_grade_summary(
     """Get grading summary for an assignment (instructors only)."""
     await require_instructor_or_admin(user, course_id, db)
     
-    # Get all sessions for this assignment
-    sessions = await db.list_subcollection(
+    # Get all non-test sessions for this assignment
+    all_sessions = await db.list_subcollection(
         "courses", course_id, "sessions", Session,
         filters=[("assignment_id", "==", assignment_id)],
     )
+    sessions = [s for s in all_sessions if not s.is_test]
     
     total_sessions = len(sessions)
     graded_sessions = sum(1 for s in sessions if is_status(s.status, "graded"))
@@ -310,14 +311,15 @@ async def grade_all_pending(
     """Grade all pending sessions for an assignment (instructors only)."""
     await require_instructor_or_admin(user, course_id, db)
     
-    # Get all completed but ungraded sessions
-    sessions = await db.list_subcollection(
+    # Get all completed but ungraded student sessions (exclude test sessions)
+    all_sessions = await db.list_subcollection(
         "courses", course_id, "sessions", Session,
         filters=[
             ("assignment_id", "==", assignment_id),
             ("status", "==", SessionStatus.COMPLETED.value),
         ],
     )
+    sessions = [s for s in all_sessions if not s.is_test]
     
     # Queue grading for each
     for session in sessions:

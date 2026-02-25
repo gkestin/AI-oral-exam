@@ -37,6 +37,7 @@ class Session(FirestoreModel):
     
     # Metadata
     attempt_number: int = 1
+    is_test: bool = False
     client_info: Optional[dict] = None  # Browser, device info
     api_key_source: Optional[str] = None  # "user_keys" | "harvard_unlimited" | "course_trial"
     trial_counted: bool = False
@@ -45,6 +46,7 @@ class Session(FirestoreModel):
 class SessionCreate(CamelCaseModel):
     """Data for creating a new session."""
     assignment_id: str
+    is_test: bool = False
     client_info: Optional[dict] = None
 
 
@@ -60,6 +62,7 @@ class SessionSummary(CamelCaseModel):
     assignment_id: str
     student_id: str
     student_name: str
+    is_test: bool = False
     status: SessionStatus
     started_at: Optional[datetime]
     duration_seconds: Optional[int]

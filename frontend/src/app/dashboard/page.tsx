@@ -45,8 +45,9 @@ export default function DashboardPage() {
       ]);
 
       setAssignments(assignmentsData);
-      // Only show the 5 most recent sessions
-      setRecentSessions(sessionsData.slice(0, 5));
+      // Only show the 5 most recent non-test sessions
+      const studentSessions = sessionsData.filter(s => !s.isTest);
+      setRecentSessions(studentSessions.slice(0, 5));
     } catch (err) {
       setError('Failed to load dashboard data');
       console.error(err);
@@ -185,7 +186,7 @@ export default function DashboardPage() {
             {recentSessions.map((session) => (
               <Link
                 key={session.id}
-                href={`/dashboard/sessions/${session.id}`}
+                href={`/dashboard/courses/${selectedCourse.course.id}/sessions/${session.id}`}
               >
                 <Card className="card-hover cursor-pointer">
                   <CardContent className="py-3">

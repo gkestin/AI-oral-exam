@@ -241,11 +241,13 @@ export interface Session {
   durationSeconds?: number;
   transcript: TranscriptMessage[];
   attemptNumber: number;
+  isTest?: boolean;
   createdAt: Date;
 }
 
 export interface SessionCreate {
   assignmentId: string;
+  isTest?: boolean;
   clientInfo?: Record<string, unknown>;
 }
 
@@ -254,6 +256,7 @@ export interface SessionSummary {
   assignmentId: string;
   studentId: string;
   studentName: string;
+  isTest?: boolean;
   status: SessionStatus;
   startedAt?: Date;
   durationSeconds?: number;

@@ -145,7 +145,14 @@ export default function SessionPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">{assignment.title}</CardTitle>
+            <div className="flex items-center gap-3">
+              <CardTitle className="text-2xl">{assignment.title}</CardTitle>
+              {session.isTest && (
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 border border-indigo-200">
+                  Test Session
+                </span>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             {keyPolicy?.activeSource === 'course_trial' && (
@@ -286,7 +293,12 @@ export default function SessionPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-green-800">
               <CheckCircle className="w-6 h-6" />
-              Session Complete
+              {session.isTest ? 'Test Session Complete' : 'Session Complete'}
+              {session.isTest && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 border border-indigo-200">
+                  Test
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">

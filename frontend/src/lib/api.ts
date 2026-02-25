@@ -151,10 +151,11 @@ export const assignments = {
 // ==================== SESSIONS ====================
 
 export const sessions = {
-  list: (courseId: string, params?: { assignmentId?: string; studentId?: string }) => {
+  list: (courseId: string, params?: { assignmentId?: string; studentId?: string; isTest?: boolean }) => {
     const query = new URLSearchParams();
     if (params?.assignmentId) query.set('assignment_id', params.assignmentId);
     if (params?.studentId) query.set('student_id', params.studentId);
+    if (params?.isTest !== undefined) query.set('is_test', String(params.isTest));
     const queryStr = query.toString();
     return request<SessionSummary[]>(
       `/courses/${courseId}/sessions${queryStr ? `?${queryStr}` : ''}`

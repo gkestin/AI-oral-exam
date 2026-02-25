@@ -104,8 +104,11 @@ async def list_assignments(
             "courses", course_id, "sessions", Session
         )
 
-        # Filter sessions for this assignment
-        assignment_sessions = [s for s in sessions if s.assignment_id == assignment.id]
+        # Filter sessions for this assignment, excluding test sessions
+        assignment_sessions = [
+            s for s in sessions
+            if s.assignment_id == assignment.id and not s.is_test
+        ]
 
         # For students, only count their own sessions
         if is_student(role):
@@ -113,7 +116,6 @@ async def list_assignments(
 
         # Count total and completed sessions
         session_count = len(assignment_sessions)
-        # For now, count completed sessions as "graded" since grades are in separate collection
         graded_count = len([s for s in assignment_sessions if is_status(s.status, "completed")])
 
         summaries.append(AssignmentSummary(

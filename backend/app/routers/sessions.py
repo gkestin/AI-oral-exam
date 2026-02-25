@@ -44,6 +44,9 @@ async def create_session(
 ):
     """Start a new session for an assignment."""
     role = await require_any_role(user, course_id, db)
+
+    # Only instructors/admins can create test sessions
+    creating_test = data.is_test and not is_student(role)
     
     # Get the assignment
     assignment = await db.get_subcollection_document(
@@ -53,12 +56,12 @@ async def create_session(
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found")
     
-    # Students can only access published assignments
+    # Students can only access published assignments; test sessions bypass this
     if is_student(role) and not assignment.is_published:
         raise HTTPException(status_code=404, detail="Assignment not found")
     
-    # Check due date
-    if assignment.due_date and assignment.due_date < datetime.utcnow():
+    # Check due date (skip for test sessions)
+    if not creating_test and assignment.due_date and assignment.due_date < datetime.utcnow():
         if is_student(role):
             raise HTTPException(status_code=400, detail="Assignment is past due")
     
@@ -81,6 +84,7 @@ async def create_session(
         student_id=user.id,
         status=SessionStatus.PENDING,
         attempt_number=attempt_number,
+        is_test=creating_test,
         client_info=data.client_info,
         api_key_source=api_key_source,
     )
@@ -99,6 +103,7 @@ async def list_sessions(
     assignment_id: Optional[str] = Query(None),
     student_id: Optional[str] = Query(None),
     status: Optional[SessionStatus] = Query(None),
+    is_test: Optional[bool] = Query(None),
     user: User = Depends(get_current_user),
     db: FirestoreService = Depends(get_firestore_service),
 ):
@@ -115,14 +120,19 @@ async def list_sessions(
     # Filter in code
     sessions = []
     for s in all_sessions:
-        # Students can only see their own sessions
-        if is_student(role) and s.student_id != user.id:
-            continue
+        # Students can only see their own non-test sessions
+        if is_student(role):
+            if s.student_id != user.id:
+                continue
+            if s.is_test:
+                continue
         if student_id and s.student_id != student_id:
             continue
         if assignment_id and s.assignment_id != assignment_id:
             continue
         if status and s.status != status:
+            continue
+        if is_test is not None and s.is_test != is_test:
             continue
         sessions.append(s)
     
@@ -155,6 +165,7 @@ async def list_sessions(
             assignment_id=session.assignment_id,
             student_id=session.student_id,
             student_name=student_name,
+            is_test=session.is_test,
             status=session.status,
             started_at=session.started_at,
             duration_seconds=session.duration_seconds,
@@ -181,9 +192,10 @@ async def get_session(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    # Students can only see their own sessions
-    if is_student(role) and session.student_id != user.id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    # Students can only see their own non-test sessions
+    if is_student(role):
+        if session.student_id != user.id or session.is_test:
+            raise HTTPException(status_code=403, detail="Not authorized")
     
     return session
 
