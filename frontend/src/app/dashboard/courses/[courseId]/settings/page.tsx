@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { api, ApiError } from '@/lib/api';
 import { Button, Input, Label, Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui';
 import { Copy } from 'lucide-react';
-import type { Course } from '@/types';
+import type { Course, UserKeyPolicy } from '@/types';
 
 export default function CourseSettingsPage() {
   const params = useParams();
@@ -25,6 +25,7 @@ export default function CourseSettingsPage() {
   const [instructorPasscode, setInstructorPasscode] = useState('');
   const [studentPasscode, setStudentPasscode] = useState('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [trialPolicy, setTrialPolicy] = useState<UserKeyPolicy | null>(null);
   const [editingInstructorCode, setEditingInstructorCode] = useState(false);
   const [editingStudentCode, setEditingStudentCode] = useState(false);
   const [tempInstructorCode, setTempInstructorCode] = useState('');
@@ -43,6 +44,8 @@ export default function CourseSettingsPage() {
       setDescription(data.description || '');
       setInstructorPasscode(data.instructorPasscode || '');
       setStudentPasscode(data.studentPasscode || '');
+      const policy = await api.users.getKeyPolicy(courseId);
+      setTrialPolicy(policy);
     } catch (err) {
       console.error(err);
       setError('Failed to load course');
@@ -394,6 +397,44 @@ export default function CourseSettingsPage() {
           </form>
         </CardContent>
       </Card>
+
+      {trialPolicy && trialPolicy.trialLimit != null && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Shared Trial Usage</CardTitle>
+            <CardDescription>
+              Non-Harvard users share a pool of trial conversations per course before they must add personal API keys.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-600">Conversations used</span>
+                <span className="font-semibold">{trialPolicy.trialUsed ?? 0} / {trialPolicy.trialLimit}</span>
+              </div>
+              <div className="w-full bg-slate-200 rounded-full h-2.5">
+                <div
+                  className={`h-2.5 rounded-full ${
+                    trialPolicy.trialExhausted ? 'bg-red-500' : 'bg-indigo-500'
+                  }`}
+                  style={{ width: `${Math.min(((trialPolicy.trialUsed ?? 0) / trialPolicy.trialLimit) * 100, 100)}%` }}
+                />
+              </div>
+              {trialPolicy.trialExhausted && (
+                <p className="text-xs text-red-600">
+                  Trial quota exhausted. Students without personal API keys will be unable to start new sessions.
+                </p>
+              )}
+              {!trialPolicy.trialExhausted && (
+                <p className="text-xs text-slate-500">
+                  {trialPolicy.trialRemaining} conversation{trialPolicy.trialRemaining !== 1 ? 's' : ''} remaining.
+                  Students with Harvard emails or personal API keys are not affected by this limit.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="mt-6 border-red-200">
         <CardHeader>

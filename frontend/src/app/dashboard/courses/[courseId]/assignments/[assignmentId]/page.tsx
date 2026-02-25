@@ -59,6 +59,8 @@ export default function AssignmentDetailPage() {
     }
   };
 
+  const sessionBlocked = keyPolicy?.activeSource === 'api_keys_required' || keyPolicy?.trialExhausted;
+
   const handleStartSession = async () => {
     setStartingSession(true);
     try {
@@ -103,11 +105,17 @@ export default function AssignmentDetailPage() {
   }
 
   if (error || !assignment) {
+    const showSettingsLink = error && (error.includes('API keys') || error.includes('trial') || error.includes('quota'));
     return (
       <div className="max-w-2xl mx-auto">
         <Card className="bg-red-50 border-red-200">
-          <CardContent className="py-6 text-center text-red-600">
-            {error || 'Assignment not found'}
+          <CardContent className="py-6 text-center">
+            <p className="text-red-600">{error || 'Assignment not found'}</p>
+            {showSettingsLink && (
+              <Link href="/dashboard/settings" className="text-indigo-600 hover:underline text-sm mt-2 inline-block">
+                Open API Key Settings
+              </Link>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -222,45 +230,63 @@ export default function AssignmentDetailPage() {
 
       {/* Start Session (for students) */}
       {!isInstructor && assignment.isPublished && (
-        <Card className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
+        <Card className={sessionBlocked
+          ? "bg-gradient-to-r from-slate-400 to-slate-500 text-white"
+          : "bg-gradient-to-r from-indigo-500 to-purple-600 text-white"
+        }>
           <CardContent className="py-8 text-center">
-            {keyPolicy?.activeSource === 'course_trial' && (
+            {keyPolicy?.activeSource === 'course_trial' && !keyPolicy?.trialExhausted && (
               <div className="inline-flex items-center px-3 py-1 rounded-full bg-white/20 text-xs mb-3">
                 Trial mode: {keyPolicy.trialUsed ?? 0}/{keyPolicy.trialLimit ?? 10} shared conversations used
               </div>
             )}
-            {keyPolicy?.trialExhausted && (
-              <div className="max-w-xl mx-auto mb-4 bg-amber-100 text-amber-900 rounded-lg px-4 py-3 text-sm">
-                Shared trial is exhausted for this course. Add API keys in Settings to continue.
-                <Link href="/dashboard/settings" className="underline ml-1 font-medium">Open Settings</Link>
-              </div>
+            {sessionBlocked ? (
+              <>
+                <h2 className="text-xl font-semibold mb-2">API Keys Required</h2>
+                <p className="text-slate-200 mb-4">
+                  {keyPolicy?.trialExhausted
+                    ? `This course has used all ${keyPolicy.trialLimit} shared trial conversations.`
+                    : 'You need to configure API keys before starting a session.'}
+                </p>
+                <Link href="/dashboard/settings">
+                  <Button className="bg-white text-slate-700 hover:bg-gray-100 font-semibold shadow-lg">
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                    Open API Key Settings
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-semibold mb-2">Ready to Begin?</h2>
+                <p className="text-indigo-100 mb-6">
+                  {assignment.timeLimitMinutes 
+                    ? `This session has a ${assignment.timeLimitMinutes} minute time limit.`
+                    : 'Take your time and answer thoughtfully.'}
+                </p>
+                <Button
+                  onClick={handleStartSession}
+                  disabled={startingSession}
+                  className="bg-white text-indigo-700 hover:bg-gray-100 font-semibold shadow-lg"
+                >
+                  {startingSession ? (
+                    <span className="flex items-center gap-2">
+                      <div className="spinner w-4 h-4" />
+                      Starting...
+                    </span>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Start Session
+                    </>
+                  )}
+                </Button>
+              </>
             )}
-            <h2 className="text-xl font-semibold mb-2">Ready to Begin?</h2>
-            <p className="text-indigo-100 mb-6">
-              {assignment.timeLimitMinutes 
-                ? `This session has a ${assignment.timeLimitMinutes} minute time limit.`
-                : 'Take your time and answer thoughtfully.'}
-            </p>
-            <Button
-              onClick={handleStartSession}
-              disabled={startingSession}
-              className="bg-white text-indigo-700 hover:bg-gray-100 font-semibold shadow-lg"
-            >
-              {startingSession ? (
-                <span className="flex items-center gap-2">
-                  <div className="spinner w-4 h-4" />
-                  Starting...
-                </span>
-              ) : (
-                <>
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Start Session
-                </>
-              )}
-            </Button>
           </CardContent>
         </Card>
       )}
