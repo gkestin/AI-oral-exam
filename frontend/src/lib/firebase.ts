@@ -69,8 +69,16 @@ export const signUpWithEmail = async (
 export const resendVerificationEmail = async () => {
   const user = auth.currentUser;
   if (!user) throw new Error('Not signed in');
+  await user.reload();
   if (user.emailVerified) throw new Error('Email already verified');
   await sendEmailVerification(user);
+};
+
+export const refreshAuthToken = async (): Promise<void> => {
+  const user = auth.currentUser;
+  if (!user) return;
+  await user.reload();
+  await user.getIdToken(true);
 };
 
 export const signInWithGoogle = async () => {

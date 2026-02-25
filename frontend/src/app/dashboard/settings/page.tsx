@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
-import { resendVerificationEmail } from '@/lib/firebase';
+import { resendVerificationEmail, refreshAuthToken } from '@/lib/firebase';
 import { useAuth } from '@/lib/hooks';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label } from '@/components/ui';
 import type { UserApiKeyStatus, UserKeyPolicy } from '@/types';
@@ -27,6 +27,7 @@ export default function SettingsPage() {
     setLoading(true);
     setError(null);
     try {
+      await refreshAuthToken();
       const [policyData, statusData] = await Promise.all([
         api.users.getKeyPolicy(),
         api.users.getApiKeys(),
@@ -131,7 +132,7 @@ export default function SettingsPage() {
                 A verification email was sent when you signed up — check your inbox and spam folder.
               </p>
               <p className="text-amber-700 text-xs">
-                After clicking the link in the email, sign out and sign back in for it to take effect.
+                After clicking the link in the email, refresh this page to update your status.
               </p>
               {verificationMessage && (
                 <p className={`text-xs ${verificationMessage.startsWith('Verification email sent') ? 'text-green-700' : 'text-red-600'}`}>
@@ -147,11 +148,15 @@ export default function SettingsPage() {
                     await resendVerificationEmail();
                     setVerificationMessage('Verification email sent! Check your inbox, then sign out and back in.');
                   } catch (err: any) {
-                    const msg = err?.code === 'auth/too-many-requests'
-                      ? 'A verification email was already sent recently. Please check your inbox (and spam folder) and wait a few minutes before trying again.'
-                      : err?.code === 'auth/email-already-verified'
-                      ? 'Your email is already verified! Sign out and sign back in to update your status.'
-                      : (err.message || 'Failed to send verification email.');
+                    let msg: string;
+                    if (err?.message === 'Email already verified') {
+                      msg = 'Your email is already verified! Refreshing your status now...';
+                      await load();
+                    } else if (err?.code === 'auth/too-many-requests') {
+                      msg = 'A verification email was already sent recently. Please check your inbox (and spam folder) and wait a few minutes before trying again.';
+                    } else {
+                      msg = err.message || 'Failed to send verification email.';
+                    }
                     setVerificationMessage(msg);
                   }
                 }}
