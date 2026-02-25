@@ -82,10 +82,6 @@ async def resolve_key_source_for_user(
 
     usage = await get_or_create_trial_usage(db, course_id)
 
-    pending_trial_sessions = await db.list_documents(
-        "course_trial_usage",
-        CourseTrialUsage,
-    )  # cheap fallback; real count below
     try:
         from ..models import Session as SessionModel, SessionStatus
         all_sessions = await db.list_subcollection(
