@@ -13,6 +13,8 @@ import { useAuth } from '@/lib/hooks';
 import { Button } from '@/components/ui';
 import { getInitials } from '@/lib/utils';
 import { CourseProvider, useCourseContext } from '@/lib/contexts/course-context';
+import { api } from '@/lib/api';
+import type { UserKeyPolicy } from '@/types';
 
 interface NavItem {
   label: string;
@@ -27,6 +29,18 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [keyAttention, setKeyAttention] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    api.users.getKeyPolicy().then((policy: UserKeyPolicy) => {
+      const needsAttention = !policy.hasPersonalKeys && (
+        (policy.isHarvardEligible && !policy.emailVerified) ||
+        (!policy.isHarvardEligible && !policy.hasPersonalKeys)
+      );
+      setKeyAttention(needsAttention);
+    }).catch(() => {});
+  }, [user]);
 
   // Dynamic navigation items based on selected course
   const navItems: NavItem[] = [
@@ -208,9 +222,12 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
               onClick={() => setSidebarOpen(false)}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2V7a2 2 0 00-2-2h-3l-2-2H9L7 5H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
               </svg>
               API Keys
+              {keyAttention && (
+                <span className="ml-auto w-2.5 h-2.5 rounded-full bg-amber-400" />
+              )}
             </Link>
 
             {/* Course Management - always visible */}
