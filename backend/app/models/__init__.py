@@ -20,6 +20,8 @@ from .user import (
     UserCreate,
     UserUpdate,
     UserPublic,
+    UserApiKeys,
+    CourseTrialUsage,
 )
 
 from .course import (
@@ -73,6 +75,8 @@ __all__ = [
     "UserCreate",
     "UserUpdate",
     "UserPublic",
+    "UserApiKeys",
+    "CourseTrialUsage",
     # Course
     "Course",
     "CourseCreate",

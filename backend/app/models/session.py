@@ -38,6 +38,8 @@ class Session(FirestoreModel):
     # Metadata
     attempt_number: int = 1
     client_info: Optional[dict] = None  # Browser, device info
+    api_key_source: Optional[str] = None  # "user_keys" | "harvard_unlimited" | "course_trial"
+    trial_counted: bool = False
 
 
 class SessionCreate(CamelCaseModel):

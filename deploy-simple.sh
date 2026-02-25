@@ -19,22 +19,19 @@ if [ ! -f "backend/serviceAccountKey.json" ]; then
     exit 1
 fi
 
-if [ ! -f "backend/.env" ]; then
-    echo "⚠️  Warning: backend/.env not found!"
-    echo "Creating a basic .env file..."
-    cat > backend/.env << EOF
-# Add your API keys here
-OPENAI_API_KEY=your-key-here
-ANTHROPIC_API_KEY=your-key-here
-GOOGLE_API_KEY=your-key-here
-ELEVENLABS_API_KEY=your-key-here
-DEEPGRAM_API_KEY=your-key-here
-EOF
+# Load API keys from root .env file
+if [ -f ".env" ]; then
+    echo "📋 Loading API keys from .env..."
+    export $(grep -v '^#' .env | grep -v '^\s*$' | xargs)
+else
+    echo "❌ Error: .env file not found in project root!"
+    echo "Please create a .env file with your API keys"
+    exit 1
 fi
 
 # Build and deploy backend
 echo "📦 Building backend Docker image..."
-docker build -t gcr.io/$PROJECT_ID/ai-oral-exam-backend:latest ./backend
+docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/ai-oral-exam-backend:latest ./backend
 
 echo "🔄 Pushing backend image to GCR..."
 docker push gcr.io/$PROJECT_ID/ai-oral-exam-backend:latest
@@ -50,7 +47,8 @@ gcloud run deploy ai-oral-exam-backend \
     --timeout 60 \
     --max-instances 5 \
     --min-instances 0 \
-    --port 8080
+    --port 8080 \
+    --set-env-vars="OPENAI_API_KEY=${OPENAI_API_KEY},ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY},GOOGLE_API_KEY=${GOOGLE_API_KEY},GEMINI_API_KEY=${GEMINI_API_KEY},ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}"
 
 # Get backend URL
 BACKEND_URL=$(gcloud run services describe ai-oral-exam-backend --region=$REGION --format='value(status.url)')
@@ -58,7 +56,7 @@ echo "✅ Backend deployed at: $BACKEND_URL"
 
 # Build and deploy frontend
 echo "📦 Building frontend Docker image..."
-docker build -t gcr.io/$PROJECT_ID/ai-oral-exam-frontend:latest ./frontend
+docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/ai-oral-exam-frontend:latest ./frontend
 
 echo "🔄 Pushing frontend image to GCR..."
 docker push gcr.io/$PROJECT_ID/ai-oral-exam-frontend:latest
@@ -75,7 +73,7 @@ gcloud run deploy ai-oral-exam-frontend \
     --max-instances 5 \
     --min-instances 0 \
     --port 3000 \
-    --set-env-vars="NEXT_PUBLIC_API_URL=$BACKEND_URL"
+    --set-env-vars="NEXT_PUBLIC_API_URL=$BACKEND_URL/api"
 
 # Get frontend URL
 FRONTEND_URL=$(gcloud run services describe ai-oral-exam-frontend --region=$REGION --format='value(status.url)')
@@ -88,5 +86,4 @@ echo "Frontend App: $FRONTEND_URL"
 echo ""
 echo "⚠️  Important next steps:"
 echo "1. Update Firebase authorized domains with: $FRONTEND_URL"
-echo "2. Add environment variables to Cloud Run backend service"
-echo "3. Upload Firebase service account key as a secret (recommended)"
+echo "2. API keys have been set as Cloud Run env vars from .env"

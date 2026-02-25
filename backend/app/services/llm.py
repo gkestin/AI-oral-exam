@@ -8,12 +8,14 @@ import asyncio
 import json
 import time
 from typing import Optional
+import os
 import litellm
 from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..config import get_settings
-from ..models import CategoryScore, RubricCategory
+from ..models import CategoryScore, RubricCategory, User
+from .key_policy import get_decrypted_user_llm_keys
 
 
 class LLMResponse(BaseModel):
@@ -32,18 +34,31 @@ class GradingResult(BaseModel):
     confidence: float
 
 
-def init_llm():
+def init_llm(user: Optional[User] = None, key_source: Optional[str] = None):
     """Initialize LiteLLM with API keys."""
     settings = get_settings()
+    user_keys = get_decrypted_user_llm_keys(user) if (user and key_source == "user_keys") else {}
+
+    if key_source == "user_keys":
+        openai_key = user_keys.get("openai")
+        anthropic_key = user_keys.get("anthropic")
+        google_key = user_keys.get("google")
+    else:
+        openai_key = settings.openai_api_key
+        anthropic_key = settings.anthropic_api_key
+        google_key = settings.google_api_key
 
     # Set API keys for LiteLLM
-    litellm.openai_key = settings.openai_api_key
-    litellm.anthropic_key = settings.anthropic_api_key
+    litellm.openai_key = openai_key
+    litellm.anthropic_key = anthropic_key
 
     # For Gemini, set both environment variables (LiteLLM might read either)
-    import os
-    os.environ["GOOGLE_API_KEY"] = settings.google_api_key
-    os.environ["GEMINI_API_KEY"] = settings.google_api_key
+    if google_key:
+        os.environ["GOOGLE_API_KEY"] = google_key
+        os.environ["GEMINI_API_KEY"] = google_key
+    else:
+        os.environ.pop("GOOGLE_API_KEY", None)
+        os.environ.pop("GEMINI_API_KEY", None)
 
     # Enable caching for development
     if settings.debug:
@@ -60,6 +75,8 @@ async def call_llm(
     json_mode: bool = False,
     max_tokens: int = 2000,
     temperature: float = 0.7,
+    user: Optional[User] = None,
+    key_source: Optional[str] = None,
 ) -> LLMResponse:
     """Call an LLM with retry logic.
 
@@ -73,7 +90,15 @@ async def call_llm(
     Returns:
         LLMResponse with content and metadata
     """
-    init_llm()
+    init_llm(user=user, key_source=key_source)
+    if key_source == "user_keys" and user:
+        user_keys = get_decrypted_user_llm_keys(user)
+        if model.startswith("gpt") and not user_keys.get("openai"):
+            raise ValueError("OpenAI API key is required for selected grading model")
+        if "claude" in model and not user_keys.get("anthropic"):
+            raise ValueError("Anthropic API key is required for selected grading model")
+        if "gemini" in model and not user_keys.get("google"):
+            raise ValueError("Google API key is required for selected grading model")
 
     start_time = time.time()
 
@@ -91,7 +116,8 @@ async def call_llm(
     # For Gemini models, pass the API key directly
     if model.startswith("gemini/"):
         settings = get_settings()
-        kwargs["api_key"] = settings.google_api_key
+        user_keys = get_decrypted_user_llm_keys(user) if (user and key_source == "user_keys") else {}
+        kwargs["api_key"] = user_keys.get("google") if key_source == "user_keys" else settings.google_api_key
 
     # JSON mode handling varies by provider
     if json_mode:
@@ -211,6 +237,8 @@ async def grade_with_model(
     rubric: list[RubricCategory],
     round_num: int = 1,
     previous_grades: Optional[list[dict]] = None,
+    user: Optional[User] = None,
+    key_source: Optional[str] = None,
 ) -> tuple[GradingResult, LLMResponse]:
     """Grade a transcript with a specific model.
     
@@ -224,7 +252,14 @@ async def grade_with_model(
         {"role": "user", "content": prompt},
     ]
     
-    response = await call_llm(model, messages, json_mode=True, temperature=0.3)
+    response = await call_llm(
+        model,
+        messages,
+        json_mode=True,
+        temperature=0.3,
+        user=user,
+        key_source=key_source,
+    )
     
     # Parse the JSON response
     try:
@@ -258,6 +293,8 @@ async def grade_with_council(
     rubric: list[RubricCategory],
     models: list[str],
     agreement_threshold: float = 0.8,
+    user: Optional[User] = None,
+    key_source: Optional[str] = None,
 ) -> dict:
     """Grade with multiple models using two-round deliberation.
     
@@ -272,7 +309,7 @@ async def grade_with_council(
     """
     # Round 1: Independent grading (parallel)
     round1_tasks = [
-        grade_with_model(model, transcript, rubric, round_num=1)
+        grade_with_model(model, transcript, rubric, round_num=1, user=user, key_source=key_source)
         for model in models
     ]
     round1_results = await asyncio.gather(*round1_tasks, return_exceptions=True)
@@ -313,7 +350,15 @@ async def grade_with_council(
     
     # Round 2: Deliberation
     round2_tasks = [
-        grade_with_model(model, transcript, rubric, round_num=2, previous_grades=round1_grades)
+        grade_with_model(
+            model,
+            transcript,
+            rubric,
+            round_num=2,
+            previous_grades=round1_grades,
+            user=user,
+            key_source=key_source,
+        )
         for model in models
     ]
     round2_results = await asyncio.gather(*round2_tasks, return_exceptions=True)

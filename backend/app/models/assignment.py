@@ -23,7 +23,7 @@ class GradingConfig(CamelCaseModel):
     enabled: bool = True
     timing: GradingTiming = GradingTiming.IMMEDIATE
     models: list[str] = Field(
-        default=["gpt-4.1", "claude-opus-4-5-20251101", "gemini-2.5-pro"]
+        default=["gpt-4.1", "claude-sonnet-4-5-20250929", "gemini-2.5-pro"]
     )
     rubric: list[RubricCategory] = Field(default_factory=list)
     show_live_feedback: bool = False  # For practice sessions

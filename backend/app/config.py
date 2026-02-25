@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(default="sk-mock-key-for-dev", env="OPENAI_API_KEY")
     anthropic_api_key: str = Field(default="sk-mock-key-for-dev", env="ANTHROPIC_API_KEY")
     google_api_key: str = Field(default="mock-google-api-key", env="GOOGLE_API_KEY")
+    elevenlabs_api_key: Optional[str] = Field(default=None, env="ELEVENLABS_API_KEY")
+    encryption_key: Optional[str] = Field(default=None, env="ENCRYPTION_KEY")
+    non_harvard_trial_limit_per_course: int = Field(default=10, env="NON_HARVARD_TRIAL_LIMIT_PER_COURSE")
     
     # Firebase
     firebase_project_id: str = Field(default="ai-oral-exam")
@@ -37,7 +40,7 @@ class Settings(BaseSettings):
     
     # LLM Defaults
     default_grading_models: list[str] = Field(
-        default=["gpt-4o", "claude-3-5-sonnet-20241022", "gemini/gemini-1.5-pro"]
+        default=["gpt-4.1", "claude-sonnet-4-5-20250929", "gemini-2.5-pro"]
     )
     grading_agreement_threshold: float = Field(default=0.8)
     

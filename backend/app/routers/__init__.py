@@ -9,6 +9,7 @@ from .assignments import router as assignments_router
 from .sessions import router as sessions_router
 from .grading import router as grading_router
 from .voice import router as voice_router
+from .users import router as users_router
 
 __all__ = [
     "courses_router",
@@ -16,4 +17,5 @@ __all__ = [
     "sessions_router",
     "grading_router",
     "voice_router",
+    "users_router",
 ]

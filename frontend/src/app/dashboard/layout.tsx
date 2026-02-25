@@ -23,7 +23,7 @@ interface NavItem {
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { user, loading, signOut } = useAuth();
-  const { selectedCourse, courses, selectCourse } = useCourseContext();
+  const { selectedCourse, courses, loading: coursesLoading, selectCourse } = useCourseContext();
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -101,7 +101,16 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Course Selector */}
-          {courses.length > 0 && (
+          {coursesLoading ? (
+            <div className="px-4 py-4 border-b border-slate-200">
+              <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 block">
+                Current Course
+              </label>
+              <div className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-400 animate-pulse">
+                Loading courses...
+              </div>
+            </div>
+          ) : courses.length > 0 ? (
             <div className="px-4 py-4 border-b border-slate-200">
               <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 block">
                 Current Course
@@ -118,30 +127,33 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
                 ))}
               </select>
             </div>
-          )}
+          ) : null}
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
             {navItems.map((item) => {
-              const isDisabled = item.requiresCourse && !selectedCourse;
-              const isActive = !isDisabled && (pathname === item.href ||
+              const isLoading = item.requiresCourse && coursesLoading;
+              const isDisabled = item.requiresCourse && !coursesLoading && !selectedCourse;
+              const isActive = !isDisabled && !isLoading && (pathname === item.href ||
                 (item.href !== '/dashboard' && item.href !== '#' && pathname.startsWith(item.href)));
 
               return (
                 <Link
                   key={item.label}
-                  href={isDisabled ? '#' : item.href}
+                  href={(isDisabled || isLoading) ? '#' : item.href}
                   className={`
                     flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
                     transition-colors duration-150
-                    ${isDisabled
+                    ${isLoading
+                      ? 'text-slate-400 animate-pulse cursor-wait'
+                      : isDisabled
                       ? 'text-slate-400 cursor-not-allowed'
                       : isActive
                       ? 'bg-indigo-50 text-indigo-700'
                       : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}
                   `}
                   onClick={(e) => {
-                    if (isDisabled) {
+                    if (isDisabled || isLoading) {
                       e.preventDefault();
                     } else {
                       setSidebarOpen(false);
@@ -183,6 +195,23 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
                 Course Settings
               </Link>
             )}
+
+            <Link
+              href="/dashboard/settings"
+              className={`
+                flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
+                transition-colors duration-150
+                ${pathname === '/dashboard/settings'
+                  ? 'bg-indigo-50 text-indigo-700'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}
+              `}
+              onClick={() => setSidebarOpen(false)}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2V7a2 2 0 00-2-2h-3l-2-2H9L7 5H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              API Keys
+            </Link>
 
             {/* Course Management - always visible */}
             <div className="mt-4 pt-4 border-t border-slate-200">

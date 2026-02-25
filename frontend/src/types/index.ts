@@ -36,6 +36,9 @@ export interface User {
   email: string;
   displayName: string;
   photoUrl?: string;
+  emailVerified?: boolean;
+  isHarvardEligible?: boolean;
+  useHarvardKeys?: boolean;
   createdAt: Date;
   lastLogin?: Date;
 }
@@ -316,6 +319,25 @@ export interface ApiError {
   code?: string;
 }
 
+export interface UserApiKeyStatus {
+  openaiConfigured: boolean;
+  anthropicConfigured: boolean;
+  googleConfigured: boolean;
+  elevenlabsConfigured: boolean;
+}
+
+export interface UserKeyPolicy {
+  isHarvardEligible: boolean;
+  emailVerified: boolean;
+  useHarvardKeys: boolean;
+  hasPersonalKeys: boolean;
+  activeSource?: 'user_keys' | 'harvard_unlimited' | 'course_trial' | 'api_keys_required';
+  trialLimit?: number;
+  trialUsed?: number;
+  trialRemaining?: number;
+  trialExhausted?: boolean;
+}
+
 // ==================== SESSION MODE PRESETS ====================
 
 export const SESSION_MODE_LABELS: Record<SessionMode, string> = {
@@ -340,6 +362,6 @@ export const SESSION_MODE_DESCRIPTIONS: Record<SessionMode, string> = {
 
 export const AVAILABLE_GRADING_MODELS = [
   { id: 'gpt-4.1', name: 'GPT-4.1 (OpenAI)', provider: 'openai' },
-  { id: 'claude-opus-4-5-20251101', name: 'Claude Opus 4.5 (Anthropic)', provider: 'anthropic' },
+  { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5 (Anthropic)', provider: 'anthropic' },
   { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro (Google)', provider: 'google' },
 ] as const;

@@ -24,6 +24,7 @@ function AuthForm() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
 
   useEffect(() => {
     if (!loading && user) {
@@ -44,6 +45,7 @@ function AuthForm() {
         await signIn(email, password);
       } else {
         await signUp(email, password, displayName);
+        setVerificationSent(true);
       }
     } catch {
       // Error is handled in the hook
@@ -173,6 +175,12 @@ function AuthForm() {
                   disabled={isSubmitting}
                 />
               </div>
+
+              {verificationSent && (
+                <div className="bg-green-50 text-green-700 text-sm p-3 rounded-lg">
+                  A verification email has been sent to <strong>{email}</strong>. Please check your inbox and verify your email to unlock full access.
+                </div>
+              )}
 
               {error && (
                 <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg">

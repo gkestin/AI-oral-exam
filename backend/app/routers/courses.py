@@ -6,6 +6,7 @@ CRUD operations for courses and enrollments.
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
+import asyncio
 import secrets
 from datetime import datetime
 import time
@@ -81,11 +82,10 @@ async def list_my_courses(
     all_courses = await db.list_documents("courses", Course, filters=[("is_active", "==", True)])
     logger.info(f"[COURSES] Fetched {len(all_courses)} active courses in {time.time() - fetch_start:.3f}s")
 
-    # For each course, check enrollment in parallel (batched approach)
+    # Check enrollment for all courses in parallel instead of sequentially
     enrollment_check_start = time.time()
-    result = []
-    for course in all_courses:
-        # Quick check: query this specific course's enrollments for this user
+
+    async def check_enrollment(course: Course):
         enrollments = await db.list_subcollection(
             parent_collection="courses",
             parent_id=course.id,
@@ -94,13 +94,18 @@ async def list_my_courses(
             filters=[("user_id", "==", user.id)],
             limit=1,
         )
-
         if enrollments:
-            result.append(CourseWithRole(
+            return CourseWithRole(
                 course=course,
                 role=enrollments[0].role,
                 enrolled_at=enrollments[0].created_at or datetime.utcnow(),
-            ))
+            )
+        return None
+
+    enrollment_results = await asyncio.gather(
+        *(check_enrollment(course) for course in all_courses)
+    )
+    result = [r for r in enrollment_results if r is not None]
 
     logger.info(f"[COURSES] Checked enrollments for {len(result)} courses in {time.time() - enrollment_check_start:.3f}s")
 

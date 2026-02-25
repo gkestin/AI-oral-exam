@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from .firebase import init_firebase, get_firestore_service, FirestoreService
 from ..models import User, UserCreate, UserRole, Enrollment
+from .key_policy import is_harvard_email
 
 # Security scheme
 security = HTTPBearer()
@@ -58,6 +59,7 @@ async def get_current_user(
     """Get or create user document for authenticated user."""
     # Try to get existing user
     user = await db.get_document("users", auth_user.uid, User)
+    harvard_eligible = is_harvard_email(auth_user.email)
     
     if user is None:
         # Create new user document
@@ -66,8 +68,28 @@ async def get_current_user(
             email=auth_user.email,
             display_name=auth_user.display_name or auth_user.email.split("@")[0],
             photo_url=auth_user.photo_url,
+            email_verified=auth_user.email_verified,
+            is_harvard_eligible=harvard_eligible,
+            # Backward-compatible default: existing product behavior allows shared keys by default.
+            use_harvard_keys=True,
         )
         await db.create_document("users", user, doc_id=auth_user.uid)
+    else:
+        updates = {}
+        if user.email != auth_user.email:
+            updates["email"] = auth_user.email
+        if user.display_name != (auth_user.display_name or auth_user.email.split("@")[0]):
+            updates["display_name"] = auth_user.display_name or auth_user.email.split("@")[0]
+        if user.photo_url != auth_user.photo_url:
+            updates["photo_url"] = auth_user.photo_url
+        if user.email_verified != auth_user.email_verified:
+            updates["email_verified"] = auth_user.email_verified
+        if user.is_harvard_eligible != harvard_eligible:
+            updates["is_harvard_eligible"] = harvard_eligible
+
+        if updates:
+            await db.update_document("users", auth_user.uid, updates)
+            user = await db.get_document("users", auth_user.uid, User) or user
     
     return user
 
@@ -173,6 +195,9 @@ async def get_current_user_websocket(token: str) -> User:
                 email=decoded.get("email", ""),
                 display_name=decoded.get("name") or decoded.get("email", "").split("@")[0],
                 photo_url=decoded.get("picture"),
+                email_verified=decoded.get("email_verified", False),
+                is_harvard_eligible=is_harvard_email(decoded.get("email", "")),
+                use_harvard_keys=True,
             )
             await db.create_document("users", user, doc_id=decoded["uid"])
 

@@ -15,6 +15,7 @@ from ..models import (
 from ..services import (
     get_current_user, get_firestore_service, FirestoreService,
     require_instructor_or_admin, require_any_role, get_user_role_in_course,
+    resolve_key_source_for_user,
 )
 from ..services.llm import grade_with_council
 
@@ -75,11 +76,22 @@ async def grade_session_task(
             transcript_text = "[Empty transcript - no conversation recorded]"
         
         # Run grading council
+        student_user = await db.get_document("users", session.student_id, User)
+        key_source = session.api_key_source
+        if student_user and not key_source:
+            try:
+                key_source = await resolve_key_source_for_user(db, student_user, course_id)
+            except Exception:
+                # Backward-compatible fallback for pre-policy sessions.
+                key_source = "harvard_unlimited"
+
         result = await grade_with_council(
             transcript=transcript_text,
             rubric=assignment.grading.rubric,
             models=assignment.grading.models,
             agreement_threshold=assignment.grading.agreement_threshold,
+            user=student_user,
+            key_source=key_source,
         )
         
         # Save individual LLM grades

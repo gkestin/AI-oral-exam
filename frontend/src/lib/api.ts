@@ -11,6 +11,7 @@ import type {
   Session, SessionCreate, SessionSummary,
   FinalGrade, LLMGrade, GradeSummary,
   Enrollment,
+  UserApiKeyStatus, UserKeyPolicy,
 } from '@/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
@@ -51,17 +52,20 @@ async function request<T>(
     const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
     // Handle Pydantic validation errors (array of objects) vs simple string detail
     let detail: string;
+    let code: string | undefined;
     if (Array.isArray(error.detail)) {
       // Pydantic validation errors
       detail = error.detail.map((e: { msg?: string; loc?: string[] }) => 
         e.msg || JSON.stringify(e)
       ).join('; ');
     } else if (typeof error.detail === 'object') {
-      detail = JSON.stringify(error.detail);
+      detail = error.detail.message || JSON.stringify(error.detail);
+      code = error.detail.code || error.code;
     } else {
       detail = error.detail || 'Unknown error';
+      code = error.code;
     }
-    throw new ApiError(response.status, detail, error.code);
+    throw new ApiError(response.status, detail, code);
   }
   
   // Handle empty responses
@@ -192,6 +196,18 @@ export const sessions = {
     request<{ transcript: Array<{ role: string; content: string; timestamp: string }> }>(
       `/courses/${courseId}/sessions/${sessionId}/transcript`
     ),
+
+  getElevenLabsAgent: (courseId: string, sessionId: string) =>
+    request<{ agent_id: string; created: boolean }>(
+      `/courses/${courseId}/sessions/${sessionId}/elevenlabs/agent`,
+      { method: 'POST' }
+    ),
+
+  getGeminiToken: (courseId: string, sessionId: string) =>
+    request<{ api_key: string }>(
+      `/courses/${courseId}/sessions/${sessionId}/gemini/token`,
+      { method: 'POST' }
+    ),
 };
 
 // ==================== GRADING ====================
@@ -230,6 +246,34 @@ export const grading = {
     ),
 };
 
+// ==================== USERS ====================
+
+export const users = {
+  getMe: () => request('/users/me'),
+
+  getApiKeys: () => request<UserApiKeyStatus>('/users/me/api-keys'),
+
+  updateApiKeys: (data: {
+    openaiKey?: string;
+    anthropicKey?: string;
+    googleKey?: string;
+    elevenlabsKey?: string;
+  }) =>
+    request<{ message: string }>('/users/me/api-keys', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  setSharedKeyPreference: (useHarvardKeys: boolean) =>
+    request<{ message: string; use_harvard_keys: boolean }>('/users/me/shared-keys', {
+      method: 'POST',
+      body: JSON.stringify({ use_harvard_keys: useHarvardKeys }),
+    }),
+
+  getKeyPolicy: (courseId?: string) =>
+    request<UserKeyPolicy>(`/users/me/key-policy${courseId ? `?course_id=${courseId}` : ''}`),
+};
+
 // ==================== EXPORT ====================
 
 export const api = {
@@ -237,6 +281,7 @@ export const api = {
   assignments,
   sessions,
   grading,
+  users,
 };
 
 export { ApiError };

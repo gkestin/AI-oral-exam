@@ -18,6 +18,7 @@ from .routers import (
     sessions_router,
     grading_router,
     voice_router,
+    users_router,
 )
 
 
@@ -97,6 +98,7 @@ app.include_router(courses_router, prefix="/api")
 app.include_router(assignments_router, prefix="/api")
 app.include_router(sessions_router, prefix="/api")
 app.include_router(grading_router, prefix="/api")
+app.include_router(users_router, prefix="/api")
 
 # WebSocket router (no /api prefix for WebSocket)
 app.include_router(voice_router)

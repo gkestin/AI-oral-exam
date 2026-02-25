@@ -22,6 +22,13 @@ from .auth import (
     require_any_role,
     AuthenticatedUser,
 )
+from .key_policy import (
+    is_harvard_email,
+    resolve_key_source_for_user,
+    get_or_create_trial_usage,
+    get_decrypted_user_llm_keys,
+    increment_trial_usage_if_needed,
+)
 
 __all__ = [
     # Firebase
@@ -39,4 +46,10 @@ __all__ = [
     "require_instructor_or_admin",
     "require_any_role",
     "AuthenticatedUser",
+    # Key policy
+    "is_harvard_email",
+    "resolve_key_source_for_user",
+    "get_or_create_trial_usage",
+    "get_decrypted_user_llm_keys",
+    "increment_trial_usage_if_needed",
 ]

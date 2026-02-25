@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useConversation } from '@elevenlabs/react';
 import { Mic, MicOff, Volume2, VolumeX, Bot, User, Loader2, Play, StopCircle, AlertCircle, CheckCircle, Phone, PhoneOff } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import type { Assignment, Session } from '@/types';
 
 interface Message {
@@ -38,9 +39,13 @@ export default function ElevenLabsVoiceExam({
   const [agentId, setAgentId] = useState<string | null>(null);
   const [tentativeTranscript, setTentativeTranscript] = useState('');
   const [currentMode, setCurrentMode] = useState<'listening' | 'speaking' | null>(null);
+  const [idleWarning, setIdleWarning] = useState(false);
+  const [showSettingsLink, setShowSettingsLink] = useState(false);
 
   const sessionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date | null>(null);
+  const lastInteractionAtRef = useRef<number>(Date.now());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
@@ -49,6 +54,7 @@ export default function ElevenLabsVoiceExam({
     onConnect: ({ conversationId }) => {
       setIsConnecting(false);
       setError(null);
+      setShowSettingsLink(false);
     },
     onDisconnect: () => {
       if (!sessionEnded) {
@@ -83,6 +89,8 @@ export default function ElevenLabsVoiceExam({
 
       // Only add non-empty messages
       if (content && content.trim()) {
+        lastInteractionAtRef.current = Date.now();
+        setIdleWarning(false);
         // Add message to transcript
         const newMessage: Message = {
           role: source === 'user' ? 'user' : 'assistant',
@@ -175,60 +183,28 @@ export default function ElevenLabsVoiceExam({
           return;
         }
         creatingAgentRef.current = true;
-
-        // First student to access will create the agent
-        // We should save this back to the assignment to reuse for other students
         try {
-          const { createDynamicAgent } = await import('@/lib/elevenlabs');
-          const apiKey = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY;
-
-          if (!apiKey) {
-            setError('ElevenLabs API key not configured');
-            creatingAgentRef.current = false;
-            return;
-          }
-
-          console.log('Creating dynamic agent for assignment (first time):', assignment.title);
-          const newAgentId = await createDynamicAgent(assignment, apiKey);
-          console.log('Successfully created agent:', newAgentId);
-          setAgentId(newAgentId);
-
-          // Update the assignment to save this agent ID for future students
-          // This prevents creating duplicate agents
-          try {
-            const updatedVoiceConfig = {
-              ...assignment.voiceConfig,
-              provider: assignment.voiceConfig?.provider || 'browser_tts',
-              elevenLabs: {
-                ...assignment.voiceConfig?.elevenLabs,
-                mode: assignment.voiceConfig?.elevenLabs?.mode || 'agent_id',
-                agentId: newAgentId
-              }
-            };
-
-            await api.assignments.update(courseId, assignment.id, {
-              voiceConfig: updatedVoiceConfig
-            });
-            console.log('Saved agent ID to assignment for reuse');
-          } catch (updateErr) {
-            console.error('Failed to save agent ID to assignment:', updateErr);
-            // Continue anyway - the agent was created successfully
-          }
+          const result = await api.sessions.getElevenLabsAgent(courseId, sessionId);
+          setAgentId(result.agent_id);
         } catch (err: any) {
-          console.error('Failed to create dynamic agent:', err);
-          setError(`Failed to create voice agent: ${err.message || 'Unknown error'}`);
+          const apiErr = err as ApiError;
+          if (apiErr?.code === 'elevenlabs_key_required') {
+            setShowSettingsLink(true);
+            setError('ElevenLabs key required for this account. Add it in API Key Settings to continue voice sessions.');
+          } else {
+            setError(`Failed to create voice agent: ${apiErr?.detail || apiErr?.message || 'Unknown error'}`);
+          }
+        } finally {
+          // Reset flag after request completes
           creatingAgentRef.current = false;
         }
-
-        // Reset flag after successful creation
-        creatingAgentRef.current = false;
       } else {
         setError('Invalid ElevenLabs configuration - please configure an agent');
       }
     };
 
     setupAgent();
-  }, [assignment]);
+  }, [assignment, courseId, sessionId]);
 
   // Initialize browser speech recognition for interim transcripts
   useEffect(() => {
@@ -356,6 +332,27 @@ export default function ElevenLabsVoiceExam({
     }
   }, [sessionStarted, sessionEnded]);
 
+  // Auto-stop when there is no back-and-forth for too long.
+  useEffect(() => {
+    if (!sessionStarted || sessionEnded) return;
+
+    idleTimerRef.current = setInterval(() => {
+      const idleMs = Date.now() - lastInteractionAtRef.current;
+      if (idleMs >= 60_000) {
+        setIdleWarning(false);
+        handleEndSession();
+      } else if (idleMs >= 30_000) {
+        setIdleWarning(true);
+      } else {
+        setIdleWarning(false);
+      }
+    }, 2000);
+
+    return () => {
+      if (idleTimerRef.current) clearInterval(idleTimerRef.current);
+    };
+  }, [sessionStarted, sessionEnded]);
+
   const saveMessageToBackend = async (message: Message) => {
     try {
       await api.sessions.addMessage(courseId, sessionId, {
@@ -382,6 +379,8 @@ export default function ElevenLabsVoiceExam({
 
       setSessionStarted(true);
       startTimeRef.current = new Date();
+      lastInteractionAtRef.current = Date.now();
+      setIdleWarning(false);
 
       if (onSessionStart) {
         onSessionStart();
@@ -438,6 +437,9 @@ export default function ElevenLabsVoiceExam({
 
     if (sessionTimerRef.current) {
       clearInterval(sessionTimerRef.current);
+    }
+    if (idleTimerRef.current) {
+      clearInterval(idleTimerRef.current);
     }
 
     // Save transcript and end session
@@ -510,7 +512,14 @@ Keep responses concise for natural conversation.`;
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-2">
               <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-              <span>{error}</span>
+              <div>
+                <p>{error}</p>
+                {showSettingsLink && (
+                  <Link href="/dashboard/settings" className="underline font-medium">
+                    Open API Key Settings
+                  </Link>
+                )}
+              </div>
             </div>
           )}
 
@@ -534,6 +543,11 @@ Keep responses concise for natural conversation.`;
               </div>
             )}
           </div>
+          {idleWarning && !sessionEnded && (
+            <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              No recent back-and-forth detected. This session will auto-end after 60 seconds of inactivity.
+            </div>
+          )}
 
           {/* Messages Container with Status Indicators */}
           <div className="relative mb-6">

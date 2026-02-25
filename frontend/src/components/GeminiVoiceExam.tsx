@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Mic, MicOff, Volume2, VolumeX, Bot, User, Loader2, Play, StopCircle, AlertCircle, CheckCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import type { Assignment, Session } from '@/types';
 
 interface Message {
@@ -40,13 +41,17 @@ export default function GeminiVoiceExam({
   const [sessionStarted, setSessionStarted] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [idleWarning, setIdleWarning] = useState(false);
+  const [showSettingsLink, setShowSettingsLink] = useState(false);
 
   const recognitionRef = useRef<any>(null);
   const genAIRef = useRef<any>(null);
   const modelRef = useRef<any>(null);
   const chatRef = useRef<any>(null); // Store the chat session
   const sessionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date | null>(null);
+  const lastInteractionAtRef = useRef<number>(Date.now());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Use refs for state that needs to be accessed in event handlers
@@ -95,58 +100,69 @@ Keep responses concise for natural conversation.`;
   };
 
   useEffect(() => {
-    // Initialize Gemini
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-
-    if (!apiKey) {
-      setError('Please add your Gemini API key to .env.local');
-      return;
-    }
-
-    try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp',
-        generationConfig: {
-          temperature: 0.9,
-          topK: 1,
-          topP: 1,
-          maxOutputTokens: 2048,
-        },
-        systemInstruction: buildSystemPrompt()
-      });
-
-      genAIRef.current = genAI;
-      modelRef.current = model;
-
-      // Initialize chat session with system prompt
-      chatRef.current = model.startChat({
-        history: [],
-        generationConfig: {
-          temperature: 0.9,
-          topK: 1,
-          topP: 1,
-          maxOutputTokens: 2048,
+    const initGemini = async () => {
+      try {
+        const { api_key: apiKey } = await api.sessions.getGeminiToken(courseId, sessionId);
+        
+        if (!apiKey) {
+          setError('Could not retrieve Gemini API key.');
+          return;
         }
-      });
 
-      setIsConnected(true);
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({
+          model: 'gemini-2.0-flash-exp',
+          generationConfig: {
+            temperature: 0.9,
+            topK: 1,
+            topP: 1,
+            maxOutputTokens: 2048,
+          },
+          systemInstruction: buildSystemPrompt()
+        });
 
-      // Load voices for speech synthesis
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.getVoices();
-        window.speechSynthesis.onvoiceschanged = () => {
-          console.log('Voices loaded:', window.speechSynthesis.getVoices().length);
-        };
+        genAIRef.current = genAI;
+        modelRef.current = model;
+
+        // Initialize chat session with system prompt
+        chatRef.current = model.startChat({
+          history: [],
+          generationConfig: {
+            temperature: 0.9,
+            topK: 1,
+            topP: 1,
+            maxOutputTokens: 2048,
+          }
+        });
+
+        setIsConnected(true);
+        setError(null);
+        setShowSettingsLink(false);
+
+        // Load voices for speech synthesis
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.getVoices();
+          window.speechSynthesis.onvoiceschanged = () => {
+            console.log('Voices loaded:', window.speechSynthesis.getVoices().length);
+          };
+        }
+
+        // Initialize speech recognition
+        initializeSpeechRecognition();
+
+      } catch (err: any) {
+        console.error('Failed to initialize Gemini:', err);
+        const apiErr = err as ApiError;
+        if (apiErr?.code === 'google_key_required') {
+          setShowSettingsLink(true);
+          setError('Google/Gemini key required for this account. Add it in API Key Settings to continue.');
+        } else {
+          setError(`Failed to initialize Gemini: ${apiErr?.detail || apiErr?.message || 'Unknown error'}`);
+        }
       }
+    };
 
-      // Initialize speech recognition
-      initializeSpeechRecognition();
-
-    } catch (err) {
-      console.error('Failed to initialize Gemini:', err);
-      setError('Failed to initialize Gemini. Please check your API key.');
-    }
+    initGemini();
 
     return () => {
       if (recognitionRef.current) {
@@ -231,6 +247,8 @@ Keep responses concise for natural conversation.`;
       }
 
       if (finalTranscript && !isSpeakingRef.current) {
+        lastInteractionAtRef.current = Date.now();
+        setIdleWarning(false);
         // Add user message
         const userMessage: Message = {
           role: 'user',
@@ -317,6 +335,8 @@ Keep responses concise for natural conversation.`;
     };
 
     setMessages(prev => [...prev, assistantMessage]);
+    lastInteractionAtRef.current = Date.now();
+    setIdleWarning(false);
 
     // Save to backend
     try {
@@ -430,6 +450,8 @@ Keep responses concise for natural conversation.`;
       setSessionStarted(true);
       sessionStartedRef.current = true;
       startTimeRef.current = new Date();
+      lastInteractionAtRef.current = Date.now();
+      setIdleWarning(false);
 
       if (onSessionStart) {
         onSessionStart();
@@ -488,6 +510,9 @@ Keep responses concise for natural conversation.`;
     if (sessionTimerRef.current) {
       clearInterval(sessionTimerRef.current);
     }
+    if (idleTimerRef.current) {
+      clearInterval(idleTimerRef.current);
+    }
 
     // Save transcript and end session
     try {
@@ -528,6 +553,26 @@ Keep responses concise for natural conversation.`;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  useEffect(() => {
+    if (!sessionStarted || sessionEnded) return;
+
+    idleTimerRef.current = setInterval(() => {
+      const idleMs = Date.now() - lastInteractionAtRef.current;
+      if (idleMs >= 60_000) {
+        setIdleWarning(false);
+        handleEndSession();
+      } else if (idleMs >= 30_000) {
+        setIdleWarning(true);
+      } else {
+        setIdleWarning(false);
+      }
+    }, 2000);
+
+    return () => {
+      if (idleTimerRef.current) clearInterval(idleTimerRef.current);
+    };
+  }, [sessionStarted, sessionEnded]);
+
   return (
     <div className="max-w-4xl mx-auto">
       <Card>
@@ -543,7 +588,14 @@ Keep responses concise for natural conversation.`;
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex items-start gap-2">
               <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-              <span>{error}</span>
+              <div>
+                <p>{error}</p>
+                {showSettingsLink && (
+                  <Link href="/dashboard/settings" className="underline font-medium">
+                    Open API Key Settings
+                  </Link>
+                )}
+              </div>
             </div>
           )}
 
@@ -561,6 +613,11 @@ Keep responses concise for natural conversation.`;
               </div>
             )}
           </div>
+          {idleWarning && !sessionEnded && (
+            <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              No recent back-and-forth detected. This session will auto-end after 60 seconds of inactivity.
+            </div>
+          )}
 
           {/* Messages Container with Status Indicators */}
           <div className="relative mb-6">

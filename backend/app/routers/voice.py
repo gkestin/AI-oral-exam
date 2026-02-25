@@ -13,6 +13,7 @@ from ..models import User, Session, SessionStatus
 from ..services import get_current_user_websocket, get_firestore_service, FirestoreService
 from datetime import datetime, timezone
 from ..services.voice_handler import get_voice_handler
+from ..services.key_policy import increment_trial_usage_if_needed
 
 router = APIRouter(prefix="/ws", tags=["voice"])
 logger = logging.getLogger(__name__)
@@ -140,6 +141,11 @@ async def voice_session_websocket(
                         "duration_seconds": duration
                     }
                 )
+                refreshed = await db.get_subcollection_document(
+                    "courses", course_id, "sessions", session_id, Session
+                )
+                if refreshed:
+                    await increment_trial_usage_if_needed(db, refreshed)
         except Exception as e:
             logger.error(f"Failed to update session status: {e}")
 

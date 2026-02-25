@@ -26,7 +26,7 @@ import {
   Mic,
   MessageSquare
 } from 'lucide-react';
-import type { Session, Assignment, FinalGrade } from '@/types';
+import type { Session, Assignment, FinalGrade, UserKeyPolicy } from '@/types';
 
 export default function SessionPage() {
   const params = useParams();
@@ -40,6 +40,7 @@ export default function SessionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sessionMode, setSessionMode] = useState<'voice' | 'text'>('voice');
+  const [keyPolicy, setKeyPolicy] = useState<UserKeyPolicy | null>(null);
 
   useEffect(() => {
     loadSession();
@@ -68,6 +69,8 @@ export default function SessionPage() {
       // Load assignment details
       const assignmentData = await api.assignments.get(courseId, sessionData.assignmentId);
       setAssignment(assignmentData);
+      const keyPolicyData = await api.users.getKeyPolicy(courseId);
+      setKeyPolicy(keyPolicyData);
 
       // Load final grade if session is graded
       if (sessionData.status === 'graded') {
@@ -89,13 +92,9 @@ export default function SessionPage() {
   };
 
   const handleSessionEnd = async (transcript: any[]) => {
-    // Save transcript and end session
-    try {
-      await api.sessions.end(courseId, sessionId);
-      await loadSession(); // Reload to get updated status
-    } catch (err) {
-      console.error('Failed to end session:', err);
-    }
+    // The voice exam component already called api.sessions.end(),
+    // so just reload the session to pick up the new status (completed/grading)
+    await loadSession();
   };
 
   if (loading) {
@@ -149,6 +148,11 @@ export default function SessionPage() {
             <CardTitle className="text-2xl">{assignment.title}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {keyPolicy?.activeSource === 'course_trial' && (
+              <div className="inline-flex items-center px-3 py-1 rounded-full bg-amber-50 text-amber-800 text-xs border border-amber-200">
+                Trial mode: {keyPolicy.trialUsed ?? 0}/{keyPolicy.trialLimit ?? 10} shared conversations used
+              </div>
+            )}
             <div className="bg-blue-50 rounded-lg p-6">
               <h3 className="font-semibold text-blue-900 mb-3">Before You Begin</h3>
               <ul className="space-y-2 text-sm text-blue-800">

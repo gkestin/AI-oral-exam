@@ -37,3 +37,4 @@ python-dotenv>=1.0.0
 # Utilities
 tenacity>=8.2.0  # Retry logic for API calls
 numpy>=1.24.0  # For vector operations in RAG
+cryptography>=43.0.0  # Encrypt user API keys at rest

@@ -53,7 +53,7 @@ async def main():
     """Test all grading models."""
     models = [
         "gpt-4.1",  # Try without the date suffix
-        "claude-opus-4-5-20251101",
+        "claude-sonnet-4-5-20250929",
         "gemini-2.5-pro"
     ]
 

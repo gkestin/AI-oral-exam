@@ -12,7 +12,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
 import { Button, Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui';
 import { formatDate, formatDuration } from '@/lib/utils';
-import type { Assignment, SessionSummary, Course } from '@/types';
+import type { Assignment, SessionSummary, Course, UserKeyPolicy } from '@/types';
 import { SESSION_MODE_LABELS } from '@/types';
 
 export default function AssignmentDetailPage() {
@@ -28,6 +28,7 @@ export default function AssignmentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [startingSession, setStartingSession] = useState(false);
   const [isInstructor, setIsInstructor] = useState(false);
+  const [keyPolicy, setKeyPolicy] = useState<UserKeyPolicy | null>(null);
 
   useEffect(() => {
     loadData();
@@ -41,10 +42,12 @@ export default function AssignmentDetailPage() {
         api.sessions.list(courseId, { assignmentId }),
         api.courses.get(courseId),
       ]);
+      const keyPolicyData = await api.users.getKeyPolicy(courseId);
       setAssignment(assignmentData);
       setSessions(sessionsData);
       setCourse(courseData);
       setIsInstructor(courseData.instructorPasscode !== '***');
+      setKeyPolicy(keyPolicyData);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.detail);
@@ -221,6 +224,17 @@ export default function AssignmentDetailPage() {
       {!isInstructor && assignment.isPublished && (
         <Card className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
           <CardContent className="py-8 text-center">
+            {keyPolicy?.activeSource === 'course_trial' && (
+              <div className="inline-flex items-center px-3 py-1 rounded-full bg-white/20 text-xs mb-3">
+                Trial mode: {keyPolicy.trialUsed ?? 0}/{keyPolicy.trialLimit ?? 10} shared conversations used
+              </div>
+            )}
+            {keyPolicy?.trialExhausted && (
+              <div className="max-w-xl mx-auto mb-4 bg-amber-100 text-amber-900 rounded-lg px-4 py-3 text-sm">
+                Shared trial is exhausted for this course. Add API keys in Settings to continue.
+                <Link href="/dashboard/settings" className="underline ml-1 font-medium">Open Settings</Link>
+              </div>
+            )}
             <h2 className="text-xl font-semibold mb-2">Ready to Begin?</h2>
             <p className="text-indigo-100 mb-6">
               {assignment.timeLimitMinutes 

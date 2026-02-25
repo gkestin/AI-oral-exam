@@ -15,7 +15,10 @@ from ..models import (
 from ..services import (
     get_current_user, get_firestore_service, FirestoreService,
     require_instructor_or_admin, require_any_role, get_user_role_in_course,
+    resolve_key_source_for_user, increment_trial_usage_if_needed, get_decrypted_user_llm_keys,
 )
+from ..services.elevenlabs import create_dynamic_agent
+from ..config import get_settings
 
 router = APIRouter(prefix="/courses/{course_id}/sessions", tags=["sessions"])
 
@@ -69,6 +72,7 @@ async def create_session(
     )
     
     attempt_number = len(existing_sessions) + 1
+    api_key_source = await resolve_key_source_for_user(db, user, course_id)
     
     # Create session
     session = Session(
@@ -78,6 +82,7 @@ async def create_session(
         status=SessionStatus.PENDING,
         attempt_number=attempt_number,
         client_info=data.client_info,
+        api_key_source=api_key_source,
     )
     
     session_id = await db.create_subcollection_document(
@@ -214,6 +219,134 @@ async def start_session(
     return {"message": "Session started", "started_at": datetime.utcnow()}
 
 
+@router.post("/{session_id}/gemini/token")
+async def get_gemini_token(
+    course_id: str,
+    session_id: str,
+    user: User = Depends(get_current_user),
+    db: FirestoreService = Depends(get_firestore_service),
+):
+    """Resolve Gemini API key for frontend usage."""
+    session = await db.get_subcollection_document(
+        "courses", course_id, "sessions", session_id, Session
+    )
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.student_id != user.id:
+        raise HTTPException(status_code=403, detail="Not your session")
+
+    key_source = session.api_key_source or await resolve_key_source_for_user(db, user, course_id)
+    gemini_key = None
+
+    if key_source == "user_keys":
+        user_keys = get_decrypted_user_llm_keys(user)
+        gemini_key = user_keys.get("google")
+        if not gemini_key:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "message": "Google/Gemini key is required for voice sessions when using personal keys.",
+                    "code": "google_key_required",
+                },
+            )
+    else:
+        settings = get_settings()
+        gemini_key = settings.google_api_key
+        if not gemini_key:
+            raise HTTPException(
+                status_code=500,
+                detail="Server Google API key is not configured for shared voice usage",
+            )
+
+    return {"api_key": gemini_key}
+
+
+@router.post("/{session_id}/elevenlabs/agent")
+async def get_or_create_elevenlabs_agent(
+    course_id: str,
+    session_id: str,
+    user: User = Depends(get_current_user),
+    db: FirestoreService = Depends(get_firestore_service),
+):
+    """Resolve or create ElevenLabs agent ID using policy-based key source."""
+    session = await db.get_subcollection_document(
+        "courses", course_id, "sessions", session_id, Session
+    )
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.student_id != user.id:
+        raise HTTPException(status_code=403, detail="Not your session")
+
+    assignment = await db.get_subcollection_document(
+        "courses", course_id, "assignments", session.assignment_id, Assignment
+    )
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+
+    voice_cfg = assignment.voice_config or {}
+    eleven_cfg = voice_cfg.get("elevenLabs", {})
+    if voice_cfg.get("provider") != "elevenlabs":
+        raise HTTPException(status_code=400, detail="Assignment is not configured for ElevenLabs")
+
+    key_source = session.api_key_source or await resolve_key_source_for_user(db, user, course_id)
+
+    existing_agent_id = eleven_cfg.get("agentId")
+    existing_agent_key_source = eleven_cfg.get("agentKeySource")
+
+    if existing_agent_id and key_source != "user_keys":
+        if existing_agent_key_source != "user_keys":
+            return {"agent_id": existing_agent_id, "created": False}
+
+    mode = eleven_cfg.get("mode", "dynamic")
+    if mode == "agent_id" and not existing_agent_id:
+        raise HTTPException(status_code=400, detail="Assignment expects a pre-created ElevenLabs agent ID")
+    if mode == "agent_id" and existing_agent_id:
+        return {"agent_id": existing_agent_id, "created": False}
+
+    elevenlabs_key = None
+    if key_source == "user_keys":
+        user_keys = get_decrypted_user_llm_keys(user)
+        elevenlabs_key = user_keys.get("elevenlabs")
+        if not elevenlabs_key:
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "message": "ElevenLabs key is required for voice sessions when using personal keys.",
+                    "code": "elevenlabs_key_required",
+                },
+            )
+    else:
+        settings = get_settings()
+        elevenlabs_key = settings.elevenlabs_api_key
+        if not elevenlabs_key:
+            raise HTTPException(
+                status_code=500,
+                detail="Server ElevenLabs key is not configured for shared voice usage",
+            )
+
+    try:
+        new_agent_id = await create_dynamic_agent(assignment, elevenlabs_key)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Failed to create ElevenLabs agent: {exc}") from exc
+
+    if key_source != "user_keys":
+        updated_voice_cfg = {
+            **voice_cfg,
+            "elevenLabs": {
+                **eleven_cfg,
+                "agentId": new_agent_id,
+                "agentKeySource": key_source,
+            },
+        }
+        await db.update_document(
+            f"courses/{course_id}/assignments",
+            assignment.id,
+            {"voice_config": updated_voice_cfg},
+        )
+
+    return {"agent_id": new_agent_id, "created": True}
+
+
 @router.post("/{session_id}/message")
 async def add_message(
     course_id: str,
@@ -292,6 +425,13 @@ async def end_session(
         "ended_at": ended_at,
         "duration_seconds": duration,
     })
+
+    # Reload to evaluate transcript-based trial counting on latest persisted data.
+    updated_session = await db.get_subcollection_document(
+        "courses", course_id, "sessions", session_id, Session
+    )
+    if updated_session:
+        await increment_trial_usage_if_needed(db, updated_session)
     
     # Check if we should trigger grading
     assignment = await db.get_subcollection_document(

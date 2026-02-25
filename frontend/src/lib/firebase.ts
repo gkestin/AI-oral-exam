@@ -14,6 +14,7 @@ import {
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
+  sendEmailVerification,
   User as FirebaseUser,
   updateProfile,
 } from 'firebase/auth';
@@ -61,7 +62,15 @@ export const signUpWithEmail = async (
 ) => {
   const result = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(result.user, { displayName });
+  await sendEmailVerification(result.user);
   return result;
+};
+
+export const resendVerificationEmail = async () => {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not signed in');
+  if (user.emailVerified) throw new Error('Email already verified');
+  await sendEmailVerification(user);
 };
 
 export const signInWithGoogle = async () => {
