@@ -93,12 +93,16 @@ export default function SettingsPage() {
     );
   }
 
+  const isHarvard = policy?.isHarvardEligible;
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">API Key Settings</h1>
         <p className="text-slate-600">
-          Choose Harvard shared keys or your own provider keys.
+          {isHarvard
+            ? 'Manage your Harvard shared-key access or add your own provider keys.'
+            : 'Add your provider API keys to use the platform.'}
         </p>
       </div>
 
@@ -113,131 +117,147 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Eligibility</CardTitle>
-          <CardDescription>Harvard accounts get unlimited shared-key usage.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <p>
-            Harvard eligible: <strong>{policy?.isHarvardEligible ? 'Yes' : 'No'}</strong>
-          </p>
-          <p>
-            Email verified: <strong>{policy?.emailVerified ? 'Yes' : 'No'}</strong>
-          </p>
-          {policy?.isHarvardEligible && !policy?.emailVerified && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
-              <p className="text-amber-800">
-                Verify your email to unlock unlimited Harvard shared-key access.
-                A verification email was sent when you signed up — check your inbox and spam folder.
+      {isHarvard && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Harvard Access</CardTitle>
+              <CardDescription>Harvard accounts get unlimited shared-key usage once email is verified.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <p>
+                Email verified: <strong className={policy?.emailVerified ? 'text-green-700' : 'text-amber-700'}>
+                  {policy?.emailVerified ? 'Yes' : 'No'}
+                </strong>
               </p>
-              <p className="text-amber-700 text-xs">
-                After clicking the link in the email, refresh this page to update your status.
-              </p>
-              {verificationMessage && (
-                <p className={`text-xs ${verificationMessage.startsWith('Verification email sent') ? 'text-green-700' : 'text-red-600'}`}>
-                  {verificationMessage}
-                </p>
+              {!policy?.emailVerified && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+                  <p className="text-amber-800">
+                    Verify your email to unlock unlimited Harvard shared-key access.
+                    A verification email was sent when you signed up — check your inbox and spam folder.
+                  </p>
+                  <p className="text-amber-700 text-xs">
+                    After clicking the link in the email, refresh this page to update your status.
+                  </p>
+                  {verificationMessage && (
+                    <p className={`text-xs ${verificationMessage.startsWith('Verification email sent') ? 'text-green-700' : 'text-red-600'}`}>
+                      {verificationMessage}
+                    </p>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      setVerificationMessage(null);
+                      try {
+                        await resendVerificationEmail();
+                        setVerificationMessage('Verification email sent! Check your inbox (and spam folder), then refresh this page.');
+                      } catch (err: any) {
+                        let msg: string;
+                        if (err?.message === 'Email already verified') {
+                          msg = 'Your email is already verified! Refreshing your status now...';
+                          await load();
+                        } else if (err?.code === 'auth/too-many-requests') {
+                          msg = 'A verification email was already sent recently. Please check your inbox (and spam folder) and wait a few minutes before trying again.';
+                        } else {
+                          msg = err.message || 'Failed to send verification email.';
+                        }
+                        setVerificationMessage(msg);
+                      }
+                    }}
+                  >
+                    Resend Verification Email
+                  </Button>
+                </div>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  setVerificationMessage(null);
-                  try {
-                    await resendVerificationEmail();
-                    setVerificationMessage('Verification email sent! Check your inbox, then sign out and back in.');
-                  } catch (err: any) {
-                    let msg: string;
-                    if (err?.message === 'Email already verified') {
-                      msg = 'Your email is already verified! Refreshing your status now...';
-                      await load();
-                    } else if (err?.code === 'auth/too-many-requests') {
-                      msg = 'A verification email was already sent recently. Please check your inbox (and spam folder) and wait a few minutes before trying again.';
-                    } else {
-                      msg = err.message || 'Failed to send verification email.';
-                    }
-                    setVerificationMessage(msg);
-                  }
-                }}
-              >
-                Resend Verification Email
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Shared Key Preference</CardTitle>
-          <CardDescription>
-            If enabled, your account can use Harvard shared keys (subject to policy).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={useHarvardKeys}
-              onChange={(e) => setUseHarvardKeys(e.target.checked)}
-              disabled={saving}
-            />
-            Use Harvard shared keys when available
-          </label>
-          <Button onClick={savePreference} disabled={saving}>
-            Save Preference
-          </Button>
-        </CardContent>
-      </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Shared Key Preference</CardTitle>
+              <CardDescription>
+                When enabled, your account uses Harvard shared keys (no personal keys needed).
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={useHarvardKeys}
+                  onChange={(e) => setUseHarvardKeys(e.target.checked)}
+                  disabled={saving}
+                />
+                Use Harvard shared keys when available
+              </label>
+              <Button onClick={savePreference} disabled={saving}>
+                Save Preference
+              </Button>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       <Card>
         <CardHeader>
           <CardTitle>Your Provider Keys</CardTitle>
           <CardDescription>
-            Add one or more model-provider keys. The app uses your own keys first.
+            {isHarvard
+              ? 'Optionally add your own keys. Personal keys are used first when configured.'
+              : 'Add API keys for the providers used by your courses. You need at least one LLM key for grading.'}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="openai">OpenAI</Label>
-            <Input
-              id="openai"
-              type="password"
-              placeholder={status?.openaiConfigured ? 'Configured (enter new key to replace)' : 'sk-...'}
-              value={openaiKey}
-              onChange={(e) => setOpenaiKey(e.target.value)}
-            />
+        <CardContent className="space-y-5">
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-slate-700">Grading Models</h3>
+            <p className="text-xs text-slate-500">
+              At least one is required for AI grading. Add keys for all three for the full multi-model grading council.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="openai">OpenAI (GPT models)</Label>
+              <Input
+                id="openai"
+                type="password"
+                placeholder={status?.openaiConfigured ? 'Configured (enter new key to replace)' : 'sk-...'}
+                value={openaiKey}
+                onChange={(e) => setOpenaiKey(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="anthropic">Anthropic (Claude models)</Label>
+              <Input
+                id="anthropic"
+                type="password"
+                placeholder={status?.anthropicConfigured ? 'Configured (enter new key to replace)' : 'sk-ant-...'}
+                value={anthropicKey}
+                onChange={(e) => setAnthropicKey(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="google">Google/Gemini</Label>
+              <Input
+                id="google"
+                type="password"
+                placeholder={status?.googleConfigured ? 'Configured (enter new key to replace)' : 'AIza...'}
+                value={googleKey}
+                onChange={(e) => setGoogleKey(e.target.value)}
+              />
+              <p className="text-xs text-slate-500">Also used for Gemini-powered voice sessions (browser TTS mode).</p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="anthropic">Anthropic</Label>
-            <Input
-              id="anthropic"
-              type="password"
-              placeholder={status?.anthropicConfigured ? 'Configured (enter new key to replace)' : 'sk-ant-...'}
-              value={anthropicKey}
-              onChange={(e) => setAnthropicKey(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="google">Google/Gemini</Label>
-            <Input
-              id="google"
-              type="password"
-              placeholder={status?.googleConfigured ? 'Configured (enter new key to replace)' : 'AIza...'}
-              value={googleKey}
-              onChange={(e) => setGoogleKey(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="elevenlabs">ElevenLabs (optional)</Label>
-            <Input
-              id="elevenlabs"
-              type="password"
-              placeholder={status?.elevenlabsConfigured ? 'Configured (enter new key to replace)' : '...'}
-              value={elevenlabsKey}
-              onChange={(e) => setElevenlabsKey(e.target.value)}
-            />
+          <div className="border-t pt-4 space-y-2">
+            <h3 className="text-sm font-medium text-slate-700">Voice</h3>
+            <div className="space-y-2">
+              <Label htmlFor="elevenlabs">ElevenLabs</Label>
+              <Input
+                id="elevenlabs"
+                type="password"
+                placeholder={status?.elevenlabsConfigured ? 'Configured (enter new key to replace)' : 'sk_...'}
+                value={elevenlabsKey}
+                onChange={(e) => setElevenlabsKey(e.target.value)}
+              />
+              <p className="text-xs text-slate-500">Required for assignments that use ElevenLabs natural voice conversations.</p>
+            </div>
           </div>
           <Button onClick={saveKeys} disabled={saving}>
             Save Keys
